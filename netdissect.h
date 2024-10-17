@@ -386,9 +386,15 @@ NORETURN void nd_trunc_longjmp(netdissect_options *ndo);
 
 /* Bail out if "l" bytes from "p" were not captured */
 #ifdef ND_LONGJMP_FROM_TCHECK
-#define ND_TCHECK_LEN(p, l) if (!ND_TTEST_LEN(p, l)) nd_trunc_longjmp(ndo)
+#define ND_TCHECK_LEN(p, l) \
+do { \
+if (!ND_TTEST_LEN(p, l)) nd_trunc_longjmp(ndo); \
+} while (0)
 #else
-#define ND_TCHECK_LEN(p, l) if (!ND_TTEST_LEN(p, l)) goto trunc
+#define ND_TCHECK_LEN(p, l) \
+do { \
+if (!ND_TTEST_LEN(p, l)) goto trunc; \
+} while (0)
 #endif
 
 /* Bail out if "*(p)" was not captured */
@@ -410,10 +416,12 @@ NORETURN void nd_trunc_longjmp(netdissect_options *ndo);
  * a custom message, format %u
  */
 #define ND_ICHECKMSG_U(message, expression_1, operator, expression_2) \
+do { \
 if ((expression_1) operator (expression_2)) { \
 ND_PRINT(" [%s %u %s %u]", (message), (expression_1), (#operator), (expression_2)); \
 goto invalid; \
-}
+} \
+} while (0)
 
 /*
  * Check (expression_1 operator expression_2) for invalid packet with
@@ -427,10 +435,12 @@ ND_ICHECKMSG_U((#expression_1), (expression_1), operator, (expression_2))
  * a custom message, format %zu
  */
 #define ND_ICHECKMSG_ZU(message, expression_1, operator, expression_2) \
+do { \
 if ((expression_1) operator (expression_2)) { \
 ND_PRINT(" [%s %u %s %zu]", (message), (expression_1), (#operator), (expression_2)); \
 goto invalid; \
-}
+} \
+} while (0)
 
 /*
  * Check (expression_1 operator expression_2) for invalid packet with
