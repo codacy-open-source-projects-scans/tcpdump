@@ -165,11 +165,7 @@ The Regents of the University of California.  All rights reserved.\n";
 #endif
 
 static int Bflag;			/* buffer size */
-#ifdef HAVE_PCAP_DUMP_FTELL64
 static int64_t Cflag;			/* rotate dump files after this many bytes */
-#else
-static long Cflag;			/* rotate dump files after this many bytes */
-#endif
 static int Cflag_count;			/* Keep track of which file number we're writing */
 static int Dflag;			/* list available devices and exit */
 #ifdef HAVE_PCAP_FINDALLDEVS_EX
@@ -211,7 +207,7 @@ static int timeout = 1000;		/* default timeout = 1000 ms = 1 s */
 static int immediate_mode;
 #endif
 static int count_mode;
-static u_int packets_skipped;
+static u_int packets_to_skip;
 
 static int infodelay;
 static int infoprint;
@@ -219,6 +215,12 @@ static int infoprint;
 char *program_name;
 
 /* Forwards */
+static int parse_int(const char *argname, const char *string, char **endp,
+    int minval, int maxval, int base);
+static u_int parse_u_int(const char *argname, const char *string, char **endp,
+    u_int minval, u_int maxval, int base);
+static int64_t parse_int64(const char *argname, const char *string,
+    char **endp, int64_t minval, int64_t maxval, int base);
 static void (*setsignal (int sig, void (*func)(int)))(int);
 static void cleanup(int);
 static void child_cleanup(int);
@@ -315,7 +317,7 @@ pcap_set_parser_debug(int value)
 }
 
 #define HAVE_PCAP_SET_PARSER_DEBUG
-#endif
+#endif // HAVE_PCAP_SET_PARSER_DEBUG, HAVE_PCAP_DEBUG, HAVE_YYDEBUG
 
 #if defined(HAVE_PCAP_SET_OPTIMIZER_DEBUG)
 /*
@@ -330,7 +332,7 @@ __declspec(dllimport)
 extern
 #endif /* _WIN32 */
 void pcap_set_optimizer_debug(int);
-#endif
+#endif // HAVE_PCAP_SET_OPTIMIZER_DEBUG
 
 static void NORETURN
 exit_tcpdump(const int status)
@@ -407,7 +409,7 @@ show_tstamp_types_and_exit(pcap_t *pc, const char *device)
 	pcap_free_tstamp_types(tstamp_types);
 	exit_tcpdump(S_SUCCESS);
 }
-#endif
+#endif // HAVE_PCAP_SET_TSTAMP_TYPE
 
 static void NORETURN
 show_dlts_and_exit(pcap_t *pc, const char *device)
@@ -515,7 +517,7 @@ show_devices_and_exit(void)
 					break;
 				}
 			}
-#endif
+#endif // PCAP_IF_WIRELESS
 			printf("]");
 		}
 		printf("\n");
@@ -900,7 +902,7 @@ tstamp_precision_to_string(int precision)
 		return "unknown";
 	}
 }
-#endif
+#endif // HAVE_PCAP_SET_TSTAMP_PRECISION
 
 #ifdef HAVE_CAPSICUM
 /*
@@ -970,7 +972,7 @@ set_dumper_capsicum_rights(pcap_dumper_t *p)
 		error("unable to limit dump descriptor fcntls");
 	}
 }
-#endif
+#endif // HAVE_CAPSICUM
 
 /*
  * Copy arg vector into a new buffer, concatenating arguments with spaces.
@@ -1166,7 +1168,7 @@ _U_
 		status = pcap_findalldevs_ex(host_url, NULL, &devlist, ebuf);
 		free(host_url);
 	} else
-#endif
+#endif // HAVE_PCAP_FINDALLDEVS_EX
 	status = pcap_findalldevs(&devlist, ebuf);
 	if (status < 0)
 		error("%s", ebuf);
@@ -1367,7 +1369,7 @@ open_interface(const char *device, netdissect_options *ndo, char *ebuf)
 			    "and use %s as the tcpdump interface",
 			    device, newdev, parent, newdev);
 		}
-#endif
+#endif // __FreeBSD__
 		else
 			error("%s: %s", device,
 			    pcap_statustostr(status));
@@ -1422,7 +1424,6 @@ main(int argc, char **argv)
 	const char *chroot_dir = NULL;
 #endif
 	char *ret = NULL;
-	char *end;
 	pcap_if_t *devlist;
 	long devnum;
 	int status;
@@ -1472,9 +1473,124 @@ main(int argc, char **argv)
 	 *
 	 * See https://npcap.com/guide/npcap-devguide.html#npcap-feature-native-dll-implicitly
 	 */
-	if (!SetDllDirectoryA("C:\\Windows\\System32\\Npcap"))
+	WCHAR *dll_directory = NULL;
+	size_t dll_directory_buf_len = 0;	/* units of bytes */
+	UINT system_directory_buf_len = 0;	/* units of WCHARs */
+	UINT system_directory_len;		/* units of WCHARs */
+	static const WCHAR npcap[] = L"\\Npcap";
+
+	/*
+	 * Get the system directory path, in UTF-16, into a buffer that's
+	 * large enough for that directory path plus "\Npcap".
+	 *
+	 * String manipulation in C, plus fetching a variable-length
+	 * string into a buffer whose size is fixed at the time of
+	 * the call, with an oddball return value (see below), is just
+	 * a huge bag of fun.
+	 *
+	 * And it's even more fun when dealing with UTF-16, so that the
+	 * buffer sizes used in GetSystemDirectoryW() are in different
+	 * units from the buffer sizes used in realloc()!   We maintain
+	 * all sizes/length in units of bytes, not WCHARs, so that our
+	 * heads don't explode.
+	 */
+	for (;;) {
+		/*
+		 * Try to fetch the system directory.
+		 *
+		 * GetSystemDirectoryW() expects a buffer size in units
+		 * of WCHARs, not bytes, and returns a directory path
+		 * length in units of WCHARs, not bytes.
+		 *
+		 * For extra fun, if GetSystemDirectoryW() succeeds,
+		 * the return value is the length of the directory
+		 * path in units of WCHARs, *not* including the
+		 * terminating '\0', but if it fails because the
+		 * path string wouldn't fit, the return value is
+		 * the length of the directory path in units of WCHARs,
+		 * *including* the terminating '\0'.
+		 */
+		system_directory_len = GetSystemDirectoryW(dll_directory,
+		    system_directory_buf_len);
+		if (system_directory_len == 0)
+			error("GetSystemDirectoryW() failed");
+
+		/*
+		 * Did the directory path fit in the buffer?
+		 *
+		 * As per the above, this means that the return value
+		 * *plus 1*, so that the terminating '\0' is counted,
+		 * is <= the buffer size.
+		 *
+		 * (If the directory path, complete with the terminating
+		 * '\0', fits *exactly*, the return value would be the
+		 * size of the buffer minus 1, as it doesn't count the
+		 * terminating '\0', so the test below would succeed.
+		 *
+		 * If everything *but* the terminating '\0' fits,
+		 * the return value would be the size of the buffer + 1,
+		 * i.e., the size that the string in question would
+		 * have required.
+		 *
+		 * The astute reader will note that returning the
+		 * size of the buffer is not one of the two cases
+		 * above, and should never happen.)
+		 */
+		if ((system_directory_len + 1) <= system_directory_buf_len) {
+			/*
+			 * No.  We have a buffer that's large enough
+			 * for our purposes.
+			 */
+			break;
+		}
+
+		/*
+		 * Yes.  Grow the buffer.
+		 *
+		 * The space we'll need in the buffer for the system
+		 * directory, in units of WCHARs, is system_directory_len,
+		 * as that's the length of the system directory path
+		 * including the terminating '\0'.
+		 */
+		system_directory_buf_len = system_directory_len;
+
+		/*
+		 * The size of the DLL directory buffer, in *bytes*, must
+		 * be the number of WCHARs taken by the system directory,
+		 * *minus* the terminating '\0' (as we'll overwrite that
+		 * with the "\" of the "\Npcap" string), multiplied by
+		 * sizeof(WCHAR) to convert it to the number of bytes,
+		 * plus the size of the "\Npcap" string, in bytes (which
+		 * will include the terminating '\0', as that will become
+		 * the DLL path's terminating '\0').
+		 */
+		dll_directory_buf_len =
+		    ((system_directory_len - 1)*sizeof(WCHAR)) + sizeof npcap;
+		dll_directory = realloc(dll_directory, dll_directory_buf_len);
+		if (dll_directory == NULL)
+			error("Can't allocate string for Npcap directory");
+	}
+
+	/*
+	 * OK, that worked.
+	 *
+	 * Now append \Npcap.  We add the length of the system directory path,
+	 * in WCHARs, *not* including the terminating '\0' (which, since
+	 * GetSystemDirectoryW() succeeded, is the return value of
+	 * GetSystemDirectoryW(), as per the above), to the pointer to the
+	 * beginning of the path, to go past the end of the system directory
+	 * to point to the terminating '\0'.
+	 */
+	memcpy(dll_directory + system_directory_len, npcap, sizeof npcap);
+
+	/*
+	 * Now add that as a system DLL directory.
+	 */
+	if (!SetDllDirectoryW(dll_directory))
 		error("SetDllDirectory failed");
-#endif
+
+	free(dll_directory);
+#endif // _WIN32
 
 	/*
 	 * Initialize the netdissect code.
@@ -1530,26 +1646,24 @@ main(int argc, char **argv)
 			break;
 
 		case 'B':
-			Bflag = atoi(optarg)*1024;
-			if (Bflag <= 0)
-				error("invalid packet buffer size %s", optarg);
+			Bflag = parse_int("packet buffer size", optarg, NULL, 1,
+			    INT_MAX, 10);
+			/*
+			 * Will multiplying it by 1024 overflow?
+			 */
+			if (Bflag > INT_MAX / 1024)
+				error("packet buffer size %s is too large", optarg);
+			Bflag *= 1024;
 			break;
 
 		case 'c':
-			cnt = atoi(optarg);
-			if (cnt <= 0)
-				error("invalid packet count %s", optarg);
+			cnt = parse_int("packet count", optarg, NULL, 1,
+			    INT_MAX, 10);
 			break;
 
 		case 'C':
-			errno = 0;
-#ifdef HAVE_PCAP_DUMP_FTELL64
-			Cflag = strtoint64_t(optarg, &endp, 10);
-#else
-			Cflag = strtol(optarg, &endp, 10);
-#endif
-			if (endp == optarg || errno != 0 || Cflag <= 0)
-				error("invalid file size %s", optarg);
+			Cflag = parse_int64("file size", optarg, &endp, 1,
+			    INT64_MAX, 10);
 
 			if (*endp == '\0') {
 				/*
@@ -1594,7 +1708,7 @@ main(int argc, char **argv)
 					break;
 
 				default:
-					error("invalid file size %s", optarg);
+					error("invalid file size %s (invalid units)", optarg);
 				}
 
 				/*
@@ -1605,7 +1719,7 @@ main(int argc, char **argv)
 				endp++;
 				if (*endp != '\0') {
 					/* Yes - error */
-					error("invalid file size %s", optarg);
+					error("invalid file size %s (invalid units)", optarg);
 				}
 			}
 
@@ -1613,7 +1727,7 @@ main(int argc, char **argv)
 			 * Will multiplying it by multiplier overflow?
 			 */
 #ifdef HAVE_PCAP_DUMP_FTELL64
-			if (Cflag > INT64_T_CONSTANT(0x7fffffffffffffff) / Cflagmult)
+			if (Cflag > INT64_MAX / Cflagmult)
 #else
 			if (Cflag > LONG_MAX / Cflagmult)
 #endif
@@ -1659,9 +1773,8 @@ main(int argc, char **argv)
 			break;
 
 		case 'G':
-			Gflag = atoi(optarg);
-			if (Gflag < 0)
-				error("invalid number of seconds %s", optarg);
+			Gflag = parse_int("number of seconds", optarg, NULL, 0,
+			    INT_MAX, 10);
 
                         /* We will create one file initially. */
                         Gflag_count = 0;
@@ -1780,11 +1893,8 @@ main(int argc, char **argv)
 			break;
 
 		case 's':
-			ndo->ndo_snaplen = (int)strtol(optarg, &end, 0);
-			if (optarg == end || *end != '\0'
-			    || ndo->ndo_snaplen < 0 || ndo->ndo_snaplen > MAXIMUM_SNAPLEN)
-				error("invalid snaplen %s (must be >= 0 and <= %d)",
-				      optarg, MAXIMUM_SNAPLEN);
+			ndo->ndo_snaplen = parse_int("snaplen", optarg, NULL,
+			    0, MAXIMUM_SNAPLEN, 0);
 			break;
 
 		case 'S':
@@ -1863,9 +1973,8 @@ main(int argc, char **argv)
 			break;
 
 		case 'W':
-			Wflag = atoi(optarg);
-			if (Wflag <= 0)
-				error("invalid number of output files %s", optarg);
+			Wflag = parse_int("number of output files", optarg,
+			    NULL, 1, INT_MAX, 10);
 			WflagChars = getWflagChars(Wflag);
 			break;
 
@@ -1941,17 +2050,13 @@ main(int argc, char **argv)
 		case OPTION_PRINT_SAMPLING:
 			print = 1;
 			++ndo->ndo_Sflag;
-			ndo->ndo_print_sampling = atoi(optarg);
-			if (ndo->ndo_print_sampling <= 0)
-				error("invalid print sampling %s", optarg);
+			ndo->ndo_print_sampling = parse_int("print sampling",
+			    optarg, NULL, 1, INT_MAX, 10);
 			break;
 
 		case OPTION_SKIP:
-			errno = 0;
-			packets_skipped = (u_int)strtoul(optarg, &end, 0);
-			if (optarg[0] == '-' || optarg == end || *end != '\0' ||
-			    errno != 0)
-				error("invalid packet skipped %s", optarg);
+			packets_to_skip = parse_u_int("packet skip count",
+			    optarg, NULL, 0, INT_MAX, 0);
 			break;
 
 #ifdef HAVE_PCAP_SET_TSTAMP_PRECISION
@@ -1984,6 +2089,19 @@ main(int argc, char **argv)
 			exit_tcpdump(S_ERR_HOST_PROGRAM);
 			/* NOTREACHED */
 		}
+
+	if (ndo->ndo_Aflag && ndo->ndo_xflag)
+		warning("-A and -x[x] are mutually exclusive. -A ignored.");
+	if (ndo->ndo_Aflag && ndo->ndo_Xflag)
+		warning("-A and -X[X] are mutually exclusive. -A ignored.");
+	if (ndo->ndo_xflag && ndo->ndo_Xflag)
+		warning("-x[x] and -X[X] are mutually exclusive. -x[x] ignored.");
+
+	if (cnt != -1)
+		if ((int)packets_to_skip > (INT_MAX - cnt))
+			// cnt + (int)packets_to_skip used in pcap_loop() call
+			error("Overflow (-c count) %d + (--skip count) %d", cnt,
+			      (int)packets_to_skip);
 
 	if (Dflag)
 		show_devices_and_exit();
@@ -2581,7 +2699,7 @@ DIAG_ON_ASSIGN_ENUM
 
 	do {
 		status = pcap_loop(pd,
-				   cnt + (cnt == -1 ? 0 : packets_skipped),
+				   (cnt == -1 ? -1 : cnt + (int)packets_to_skip),
 				   callback, pcap_userdata);
 		if (WFileName == NULL) {
 			/*
@@ -2705,6 +2823,134 @@ DIAG_ON_ASSIGN_ENUM
 	free(cmdbuf);
 	pcap_freecode(&fcode);
 	exit_tcpdump(status == -1 ? S_ERR_HOST_PROGRAM : S_SUCCESS);
+}
+
+/*
+ * Routines to parse numerical command-line arguments and check for
+ * errors, including "too large for that type".
+ */
+static int
+parse_int(const char *argname, const char *string, char **endpp,
+    int minval, int maxval, int base)
+{
+	long val;
+	char *endp;
+
+	errno = 0;
+	val = strtol(string, &endp, base);
+
+	/*
+	 * Did it either not parse any of the string, find extra stuff
+	 * at the end that the caller isn't interested in, or get
+	 * another parsing error?
+	 */
+	if (string == endp || (endpp == NULL && *endp != '\0') ||
+	    (val == 0 && errno == EINVAL)) {
+		error("invalid %s \"%s\" (not a valid number)", argname,
+		    string);
+	}
+
+	/*
+	 * Did it get a value that's out of range?
+	 */
+	if (((val == LONG_MAX || val == LONG_MIN) && errno == ERANGE) ||
+	    val < minval || val > maxval) {
+		error("invalid %s %s (must be >= %d and <= %d)",
+		    argname, string, minval, maxval);
+	}
+
+	/*
+	 * OK, it passes all the tests.
+	 */
+	if (endpp != NULL)
+		*endpp = endp;
+	return ((int)val);
+}
+
+static u_int
+parse_u_int(const char *argname, const char *string, char **endpp,
+    u_int minval, u_int maxval, int base)
+{
+	unsigned long val;
+	char *endp;
+
+	errno = 0;
+
+	/*
+	 * strtoul() does *NOT* report an error if the string
+	 * begins with a minus sign. We do.
+	 */
+	if (*string == '-') {
+		error("invalid %s \"%s\" (not a valid unsigned number)",
+		    argname, string);
+	}
+
+	val = strtoul(string, &endp, base);
+
+	/*
+	 * Did it either not parse any of the string, find extra stuff
+	 * at the end that the caller isn't interested in, or get
+	 * another parsing error?
+	 */
+	if (string == endp || (endpp == NULL && *endp != '\0') ||
+	    (val == 0 && errno == EINVAL)) {
+		error("invalid %s \"%s\" (not a valid unsigned number)",
+		    argname, string);
+	}
+
+	/*
+	 * Did it get a value that's out of range?
+	 */
+	if ((val == ULONG_MAX && errno == ERANGE) ||
+	    val < minval || val > maxval) {
+		error("invalid %s %s (must be >= %u and <= %u)",
+		    argname, string, minval, maxval);
+	}
+
+	/*
+	 * OK, it passes all the tests.
+	 */
+	if (endpp != NULL)
+		*endpp = endp;
+	return ((u_int)val);
+}
+
+static int64_t
+parse_int64(const char *argname, const char *string, char **endpp,
+    int64_t minval, int64_t maxval, int base)
+{
+	intmax_t val;
+	char *endp;
+
+	errno = 0;
+	val = strtoimax(string, &endp, base);
+
+	/*
+	 * Did it either not parse any of the string, find extra stuff
+	 * at the end that the caller isn't interested in, or get
+	 * another parsing error?
+	 */
+	if (string == endp || (endpp == NULL && *endp != '\0') ||
+	    (val == 0 && errno == EINVAL)) {
+		error("invalid %s \"%s\" (not a valid number)", argname,
+		    string);
+	}
+
+	/*
+	 * Did it get a value that's out of range?
+	 */
+	if (((val == INTMAX_MAX || val == INTMAX_MIN) && errno == ERANGE) ||
+	    val < minval || val > maxval) {
+		error("invalid %s %s (must be >= %" PRId64 " and <= %" PRId64 ")",
+		    argname, string, minval, maxval);
+	}
+
+	/*
+	 * OK, it passes all the tests.
+	 */
+	if (endpp != NULL)
+		*endpp = endp;
+	return ((int64_t)val);
 }
 
 /*
@@ -2944,7 +3190,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 
 	dump_info = (struct dump_info *)user;
 
-	if (packets_captured <= packets_skipped)
+	if (packets_captured <= packets_to_skip)
 		return;
 
 	/*
@@ -3076,7 +3322,7 @@ dump_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 
 	dump_info = (struct dump_info *)user;
 
-	if (packets_captured <= packets_skipped)
+	if (packets_captured <= packets_to_skip)
 		return;
 
 	pcap_dump((u_char *)dump_info->pdd, h, sp);
@@ -3098,7 +3344,7 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 
 	++infodelay;
 
-	if (!count_mode && packets_captured > packets_skipped)
+	if (!count_mode && packets_captured > packets_to_skip)
 		pretty_print_packet((netdissect_options *)user, h, sp, packets_captured);
 
 	--infodelay;
@@ -3206,7 +3452,7 @@ print_usage(FILE *f)
 	(void)fprintf(f,
 "\t\t[ --print-sampling nth ] [ -Q in|out|inout ] [ -r file ]\n");
 	(void)fprintf(f,
-"\t\t[ -s snaplen ] [ -T type ] [ --version ]\n");
+"\t\t[ -s snaplen ] [ --skip count ] [ -T type ] [ --version ]\n");
 	(void)fprintf(f,
 "\t\t[ -V file ] [ -w file ] [ -W filecount ] [ -y datalinktype ]\n");
 #ifdef HAVE_PCAP_SET_TSTAMP_PRECISION

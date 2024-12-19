@@ -31,21 +31,30 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
         advance the packet data pointer
       OSPF: Print more truncation indications
       OSPF: Add more length checks
+      pflog: Print some additional fields from the header (picked up
+        from the FreeBSD tcpdump).
+      pflog: Handle all types of pflog files (as best as can be done)
+      pflog: Print the ruleset if it's present, regardless of whether
+        the subrule is present (inspird by the OpenBSD tcpdump).
+      pflog: Handle OpenBSD's "rewritten" flag and addresses (adapted
+        from the OpenBSD tcpdump).
       SLL2: Translate interface indices to names on Linux only.
+      RT6: Add a bounds check for the PadN TLV in Segment Routing Header.
       TCP: Add support for the AE (AccECN) flag.
     User interface:
       Add optional unit suffix on -C file size.
       Add --print-sampling to print every Nth packet instead of all.
       Add --lengths option to print the captured and original packet lengths.
       Add --skip option to skip some packets before writing or printing.
+      Use a common routine to parse numerical arguments and check its
+        value.
     Source code:
       Drop support for building with versions of libpcap that don't
         support all the libpcap 1.0 APIs.
       Use %zu when printing a sizeof to squelch compiler warnings
-      Remove unused missing/snprintf.c.
       Remove unused missing/strdup.c.
       (FIXME: somebody please wrap the line below just before the release)
-      AODV, AppleTalk, BOOTP, CHDLC, DCCP, EAP, EGP, EIGRP, ForCES, Geneve, GRE, ICMP, Juniper, L2TP, mobile, MSDP, NetFlow, NFLOG, NTP, OLSR, pflog, PGM, RADIUS, RIP, RSVP, SCTP, SNMP, TCP, UDP, vsock: Modernize packet parsing style
+      AODV, AppleTalk, BOOTP, CHDLC, DCCP, EAP, EGP, EIGRP, ForCES, Geneve, GRE, ICMP, Juniper, L2TP, LISP, mobile, MSDP, NetFlow, NFLOG, NTP, OLSR, pflog, PGM, RADIUS, RIP, RSVP, SCTP, SNMP, TCP, UDP, vsock: Modernize packet parsing style
       DCCP, EGP: Replace custom code with tok2str()
       UDP: Clean up address and port printing.
       AppleTalk: Declutter appletalk.h.
@@ -54,6 +63,8 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
         and use them rather than custom code
       Disregard setlinebuf(3), always use setvbuf(3).
       Change Sun RPC code licence to BSD-3-Clause.
+      Use C99 macros to define 64-bit constants and maximum 64-bit
+        values.
     Building and testing:
       Autoconf: Remove detection of early IPv6 stacks.
       Detect OS IPv6 support using AF_INET6 only.
@@ -63,7 +74,6 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
       Make illumos build warning-free.
       Makefile.in: Update the .c.o build rule (Remove hacks for old SunOS 4).
       Autoconf: fix buggy tests for ether_ntohost().
-      CMake: Skip snprintf(3) tests when cross-compiling.
       Makefile.in: Do not install a version-suffixed tcpdump binary if the
         .devel file does not exists.
       tests: On HP-UX use "diff -c" by default.
@@ -80,14 +90,29 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
            if the verbose level is > 1 (option -vv and more).
       TCP: Note if the Acknowledgment Number is non-zero while ACK flag not set,
            if the verbose level is > 1 (option -vv and more).
+      TCP: Fix Reset segment processing.
+      IP, IPv6: Fix setting the snapshot length for the payload.
+      PTP: Remove spaces before colons in output.
+      PTP: Fix management packet fields.
+    User interface:
+      Warn that options -A, -x[x] and -X[X] are mutually exclusive.
     Source code:
       Fix '-tt' option printing when time > 2106-02-07T06:28:15Z.
+      Remove unused missing/snprintf.c.
     Windows:
       Fixed to find wpcap.dll if WinPcap isn't installed and Npcap was
         installed without the WinPcap API compatibility option. (GitHub
         issue #1226).
     Building and testing:
       Makefile.in: Use a local libpcap in the releasecheck target.
+      CMake: Fix build with CMake 3.31.
+      autotools, CMake: don't separately test whether snprintf(3) is
+        available and whether it's suitable - the test for whether it's
+        suitable also fails if it's unavailable.
+      CMake: Skip snprintf(3) tests when cross-compiling.
+      autotools, CMake: fix issues with snprintf test and sanitizers.
+      CMake: check whether check_c_source_runs() works, treat the build
+        as a cross-compile if it doesn't work.
 
 Friday, August 30, 2024 / The Tcpdump Group
   Summary for 4.99.5 tcpdump release
@@ -129,7 +154,7 @@ Friday, August 30, 2024 / The Tcpdump Group
       OSPF: Pad TLVs in LS_OPAQUE_TYPE_RI to multiples of 4 bytes.
       OSPF: Update LS-Ack printing not to run off the end of the packet.
       OSPF6: Fix an undefined behavior.
-      pflog: use nd_ types in struct pfloghdr.
+      pflog: Use nd_ types in struct pfloghdr.
       PPP: Check if there is some data to hexdump.
       PPP: Remove an extra colon before LCP Callback Operation.
       Use the buffer stack for de-escaping PPP; fixes CVE-2024-2397;
@@ -270,7 +295,7 @@ Saturday, December 31, 2022 / The Tcpdump Group
       802.11: Fetch the CF and TIM IEs a field at a time.
       802.15.4, BGP, LISP: fix some length checks, compiler warnings,
         and undefined behavior warnings.
-      PFLOG: handle LINKTYPE_PFLOG/DLT_PFLOG files from all OSes on all
+      PFLOG: Handle LINKTYPE_PFLOG/DLT_PFLOG files from all OSes on all
         OSes.
       RRCP: support more Realtek protocols than just RRCP.
       MPLS: show the EXP field as TC, as per RFC 5462.

@@ -39,9 +39,11 @@ tcp-handshake-nano-tttt tcp-handshake-nano.pcap tcp-handshake-nano-tttt.out -ttt
 tcp-handshake-nano-ttttt tcp-handshake-nano.pcap tcp-handshake-nano-ttttt.out -ttttt -q --nano SPECIAL_t
 
 # TCP with data in the RST segment
-tcp_rst_data tcp_rst_data.pcap tcp_rst_data.out -v
+tcp_rst_data tcp_rst_data.pcap tcp_rst_data-v.out -v
+tcp_rst_data tcp_rst_data.pcap tcp_rst_data.out
 # TCP with data in the RST segment, truncated example
-tcp_rst_data-trunc tcp_rst_data-trunc.pcap tcp_rst_data-trunc.out -v
+tcp_rst_data-trunc tcp_rst_data-trunc.pcap tcp_rst_data-trunc-v.out -v
+tcp_rst_data-trunc tcp_rst_data-trunc.pcap tcp_rst_data-trunc.out
 
 # TCP
 tcp_eight_lowest_weight_flags_set tcp_eight_lowest_weight_flags_set.pcap tcp_eight_lowest_weight_flags_set.out
@@ -390,6 +392,7 @@ ipv6-srh-tlv-hmac ipv6-srh-tlv-hmac.pcap ipv6-srh-tlv-hmac.out
 ipv6-srh-tlv-hmac-v ipv6-srh-tlv-hmac.pcap ipv6-srh-tlv-hmac-v.out -v
 ipv6-srh-tlv-pad1-padn-5 ipv6-srh-tlv-pad1-padn-5.pcap ipv6-srh-tlv-pad1-padn-5.out
 ipv6-srh-tlv-pad1-padn-5-v ipv6-srh-tlv-pad1-padn-5.pcap ipv6-srh-tlv-pad1-padn-5-v.out -v
+ipv6-srh-tlv-pad1-padn-5-trunc ipv6-srh-tlv-pad1-padn-5-trunc.pcap ipv6-srh-tlv-pad1-padn-5-trunc.out
 ipv6_invalid_length ipv6_invalid_length.pcap ipv6_invalid_length.out
 ipv6_invalid_length_2 ipv6_invalid_length_2.pcap ipv6_invalid_length_2.out -v
 ipv6_jumbogram_invalid_length ipv6_jumbogram_invalid_length.pcap ipv6_jumbogram_invalid_length.out -v
@@ -547,9 +550,14 @@ olsrv1_1	OLSRv1_HNA_sgw_1.pcap		OLSRv1_HNA_sgw_1.out	-v
 unaligned-nfs-1	unaligned-nfs-1.pcap	unaligned-nfs-1.out	-v
 
 # LISP tests
-lisp_eid_notify		lisp_eid_notify.pcap	lisp_eid_notify.out	-v
-lisp_eid_register	lisp_eid_register.pcap	lisp_eid_register.out	-v
-lisp_ipv6_eid		lisp_ipv6.pcap		lisp_ipv6.out		-v
+lisp_eid_notify		lisp_eid_notify.pcap	lisp_eid_notify.out
+lisp_eid_register	lisp_eid_register.pcap	lisp_eid_register.out
+lisp_ipv6_eid		lisp_ipv6.pcap		lisp_ipv6.out
+lisp_eid_notify-v	lisp_eid_notify.pcap	lisp_eid_notify-v.out	-v
+lisp_eid_register-v	lisp_eid_register.pcap	lisp_eid_register-v.out	-v
+lisp_ipv6_eid-v		lisp_ipv6.pcap		lisp_ipv6-v.out		-v
+lisp_invalid		lisp_invalid.pcap	lisp_invalid.out
+lisp_invalid-v		lisp_invalid.pcap	lisp_invalid-v.out	-v
 
 # NSH tests
 nsh                    nsh.pcap                nsh.out
@@ -593,6 +601,7 @@ erspan-type-ii-2	erspan-type-ii-2.pcap	erspan-type-ii-2.out	-v
 erspan-type-ii-3	erspan-type-ii-3.pcap	erspan-type-ii-3.out	-v
 erspan-type-iii-ft-0	erspan-type-iii-ft-0.pcap	erspan-type-iii-ft-0.out	-v
 erspan-type-iii-ft-7	erspan-type-iii-ft-7.pcap	erspan-type-iii-ft-7.out	-v
+erspan-type-iii-pb-1	erspan-type-iii-pb-1.pcap	erspan-type-iii-pb-1.out	-v
 
 # bad packets from Hanno Böck
 # heap-overflow-1 is in non-bsd.tests
@@ -929,6 +938,7 @@ ptp         ptp.pcap    ptp.out
 ptp_ethernet	ptp_ethernet.pcap	ptp_ethernet.out	-e
 ptp_corrections	ptp_corrections.pcap	ptp_corrections.out
 ptp_v2_1	ptp_v2_1.pcap		ptp_v2_1.out
+ptp_management	ptp_management.pcap	ptp_management.out
 
 # bad packets from Jason Xiaole
 ldp_tlv_print-oobr ldp_tlv_print-oobr.pcap ldp_tlv_print-oobr.out -v
