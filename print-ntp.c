@@ -66,7 +66,7 @@
  * |                                                               |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                                                               |
- * |                   Originate Timestamp (64)                    |
+ * |                     Origin Timestamp (64)                     |
  * |                                                               |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                                                               |
@@ -245,8 +245,7 @@ ntp_time_print(netdissect_options *ndo,
 	uint8_t stratum;
 	u_int efs_len;
 
-	if (length < NTP_TIMEMSG_MINLEN)
-		goto invalid;
+	ND_ICHECK_U(length, <, NTP_TIMEMSG_MINLEN);
 
 	stratum = GET_U_1(bp->stratum);
 	ND_PRINT(", Stratum %u (%s)",
@@ -309,7 +308,7 @@ ntp_time_print(netdissect_options *ndo,
 	ND_PRINT("\n\t  Reference Timestamp:  ");
 	p_ntp_time(ndo, &(bp->ref_timestamp));
 
-	ND_PRINT("\n\t  Originator Timestamp: ");
+	ND_PRINT("\n\t  Origin Timestamp:     ");
 	p_ntp_time(ndo, &(bp->org_timestamp));
 
 	ND_PRINT("\n\t  Receive Timestamp:    ");
@@ -369,8 +368,7 @@ ntp_control_print(netdissect_options *ndo,
 	uint8_t control, R, E, M, opcode;
 	uint16_t sequence, status, assoc, offset, count;
 
-	if (length < NTP_CTRLMSG_MINLEN)
-		goto invalid;
+	ND_ICHECK_U(length, <, NTP_CTRLMSG_MINLEN);
 
 	control = GET_U_1(cd->control);
 	R = (control & 0x80) != 0;
@@ -396,8 +394,7 @@ ntp_control_print(netdissect_options *ndo,
 	count = GET_BE_U_2(cd->count);
 	ND_PRINT(", Count=%hu", count);
 
-	if (NTP_CTRLMSG_MINLEN + count > length)
-		goto invalid;
+	ND_ICHECK_U(length, <, NTP_CTRLMSG_MINLEN + count);
 	if (count != 0) {
 		ND_TCHECK_LEN(cd->data, count);
 		ND_PRINT("\n\tTO-BE-DONE: data not interpreted");
@@ -426,10 +423,12 @@ ntp_print(netdissect_options *ndo,
 	uint8_t status;
 
 	ndo->ndo_protocol = "ntp";
+	nd_print_protocol_caps(ndo);
+
 	status = GET_U_1(bp->td.status);
 
 	version = (status & VERSIONMASK) >> VERSIONSHIFT;
-	ND_PRINT("NTPv%u", version);
+	ND_PRINT("v%u", version);
 
 	mode = (status & MODEMASK) >> MODESHIFT;
 	if (!ndo->ndo_vflag) {

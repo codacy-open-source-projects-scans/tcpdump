@@ -19,16 +19,19 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* \summary: Raw IP printer */
+/* \summary: Raw IPv4/IPv6 printer and similar */
 
 #include <config.h>
 
 #include "netdissect-stdinc.h"
 
 #include "netdissect.h"
+#include "extract.h"
+
+#include "ip.h"
 
 /*
- * The DLT_RAW packet has no header. It contains a raw IP packet.
+ * The DLT_RAW packet has no header. It contains a raw IPv4 or IPv6 packet.
  */
 
 void
@@ -36,8 +39,57 @@ raw_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, const u_char 
 {
 	ndo->ndo_protocol = "raw";
 	ndo->ndo_ll_hdr_len += 0;
-	if (ndo->ndo_eflag)
-		ND_PRINT("ip: ");
 
-	ipN_print(ndo, p, h->len);
+	if (h->len < 1) {
+		ND_PRINT("truncated-ip %u", h->len);
+		return;
+	}
+
+	u_char ipver = IP_V((const struct ip *)p);
+	switch (ipver) {
+	case 4:
+		if (ndo->ndo_eflag)
+			ND_PRINT("IP ");
+		ip_print(ndo, p, h->len);
+		break;
+	case 6:
+		if (ndo->ndo_eflag)
+			ND_PRINT("IP6 ");
+		ip6_print(ndo, p, h->len);
+		break;
+	default:
+		ND_PRINT("IP%u", ipver);
+		nd_print_invalid(ndo);
+		break;
+	}
+}
+
+/*
+ * The DLT_IPV4 packet has no header. It contains a raw IPv4 packet.
+ */
+
+void
+ipv4_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, const u_char *p)
+{
+	ndo->ndo_protocol = "ip";
+	ndo->ndo_ll_hdr_len += 0;
+
+	if (ndo->ndo_eflag)
+		ND_PRINT("IP ");
+	ip_print(ndo, p, h->len);
+}
+
+/*
+ * The DLT_IPV6 packet has no header. It contains a raw IPv6 packet.
+ */
+
+void
+ipv6_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, const u_char *p)
+{
+	ndo->ndo_protocol = "ip6";
+	ndo->ndo_ll_hdr_len += 0;
+
+	if (ndo->ndo_eflag)
+		ND_PRINT("IP6 ");
+	ip6_print(ndo, p, h->len);
 }

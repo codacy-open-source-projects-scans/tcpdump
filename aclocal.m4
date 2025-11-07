@@ -795,6 +795,11 @@ dnl	os-proto.h (symlinked)
 dnl
 AC_DEFUN(AC_LBL_DEVEL,
     [rm -f os-proto.h
+    #
+    # MKDEP defaults to no-op (":") if we don't test whether the compiler
+    # supports generating dependencies
+    #
+    MKDEP=:
     if test "${LBL_CFLAGS+set}" = set; then
 	    $1="$$1 ${LBL_CFLAGS}"
     fi
@@ -807,6 +812,7 @@ AC_DEFUN(AC_LBL_DEVEL,
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wall)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wassign-enum)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wcast-qual)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wcomma)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-prototypes)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-variable-declarations)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -Wnull-pointer-subtraction)

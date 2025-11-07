@@ -217,6 +217,7 @@ struct netdissect_options {
   int ndo_bflag;		/* print 4 byte ASes in ASDOT notation */
   int ndo_eflag;		/* print ethernet header */
   int ndo_fflag;		/* don't translate "foreign" IP address */
+  int ndo_gflag;		/* don't split IP output into two lines in verbose mode */
   int ndo_Kflag;		/* don't check IP, TCP or UDP checksums */
   int ndo_nflag;		/* leave addresses as numbers */
   int ndo_Nflag;		/* remove domains from printed host names */
@@ -401,13 +402,20 @@ if (!ND_TTEST_LEN(p, l)) goto trunc; \
 #define ND_TCHECK_SIZE(p) ND_TCHECK_LEN(p, sizeof(*(p)))
 
 /*
- * Number of bytes between two pointers.
+ * Number of bytes between the two pointers arguments p1 and p2, with
+ * p2 being equal to or beyond p1; if it isn't, the result is zero.
+ *
+ * The result must fit in a u_int; the difference is never negative,
+ * and must be able to handle the full size of an address space, so
+ * the signed ptrdiff_t is not appropriate.
  */
 #define ND_BYTES_BETWEEN(p1, p2) ((const u_char *)(p1) >= (const u_char *)(p2) ? 0 : ((u_int)(((const u_char *)(p2)) - (const u_char *)(p1))))
 
 /*
  * Number of bytes remaining in the captured data, starting at the
  * byte pointed to by the argument.
+ *
+ * Returns 0 if the pointer is before the *beginning* of the packet.
  */
 #define ND_BYTES_AVAILABLE_AFTER(p) ((const u_char *)(p) < ndo->ndo_packetp ? 0 : ND_BYTES_BETWEEN((p), ndo->ndo_snapend))
 
@@ -465,6 +473,7 @@ extern u_int nd_printztn(netdissect_options *, const u_char *, u_int, const u_ch
 extern int nd_printn(netdissect_options *, const u_char *, u_int, const u_char *);
 extern void nd_printjn(netdissect_options *, const u_char *, u_int);
 extern void nd_printjnp(netdissect_options *, const u_char *, u_int);
+extern void nd_print_bytes_hex(netdissect_options *, const u_char *, u_int);
 
 /*
  * Flags for txtproto_print().
@@ -559,6 +568,8 @@ extern void ieee802_15_4_tap_if_print IF_PRINTER_ARGS;
 extern void ipfc_if_print IF_PRINTER_ARGS;
 extern void ipnet_if_print IF_PRINTER_ARGS;
 extern void ipoib_if_print IF_PRINTER_ARGS;
+extern void ipv4_if_print IF_PRINTER_ARGS;
+extern void ipv6_if_print IF_PRINTER_ARGS;
 extern void juniper_atm1_if_print IF_PRINTER_ARGS;
 extern void juniper_atm2_if_print IF_PRINTER_ARGS;
 extern void juniper_chdlc_if_print IF_PRINTER_ARGS;
@@ -681,7 +692,6 @@ extern u_int ieee802_15_4_print(netdissect_options *, const u_char *, u_int);
 extern void igmp_print(netdissect_options *, const u_char *, u_int);
 extern void igrp_print(netdissect_options *, const u_char *, u_int);
 extern void ip6_print(netdissect_options *, const u_char *, u_int);
-extern void ipN_print(netdissect_options *, const u_char *, u_int);
 extern void ip_print(netdissect_options *, const u_char *, const u_int);
 extern void ipcomp_print(netdissect_options *, const u_char *);
 extern void ipx_netbios_print(netdissect_options *, const u_char *, u_int);
@@ -700,8 +710,7 @@ extern void lldp_print(netdissect_options *, const u_char *, u_int);
 extern void lmp_print(netdissect_options *, const u_char *, u_int);
 extern void loopback_print(netdissect_options *, const u_char *, u_int);
 extern void lspping_print(netdissect_options *, const u_char *, u_int);
-extern void lwapp_control_print(netdissect_options *, const u_char *, u_int, int);
-extern void lwapp_data_print(netdissect_options *, const u_char *, u_int);
+extern void lwapp_print(netdissect_options *, const u_char *, const u_int, const u_char);
 extern void lwres_print(netdissect_options *, const u_char *, u_int);
 extern void m3ua_print(netdissect_options *, const u_char *, const u_int);
 extern int macsec_print(netdissect_options *, const u_char **, u_int *, u_int *, u_int *, const struct lladdr_info *, const struct lladdr_info *);
@@ -710,7 +719,7 @@ extern void mobile_print(netdissect_options *, const u_char *, u_int);
 extern int mobility_print(netdissect_options *, const u_char *, const u_char *);
 extern void mpcp_print(netdissect_options *, const u_char *, u_int);
 extern void mpls_print(netdissect_options *, const u_char *, u_int);
-extern int mptcp_print(netdissect_options *, const u_char *, u_int, u_char);
+extern int mptcp_print(netdissect_options *, const u_char *, u_int, uint16_t);
 extern void msdp_print(netdissect_options *, const u_char *, u_int);
 extern void msnlb_print(netdissect_options *, const u_char *);
 extern void nbt_tcp_print(netdissect_options *, const u_char *, u_int);
@@ -730,7 +739,6 @@ extern void ospf6_print(netdissect_options *, const u_char *, u_int);
 extern int ospf_grace_lsa_print(netdissect_options *, const u_char *, u_int);
 extern void ospf_print(netdissect_options *, const u_char *, u_int, const u_char *);
 extern int ospf_te_lsa_print(netdissect_options *, const u_char *, u_int);
-extern void otv_print(netdissect_options *, const u_char *, u_int);
 extern void pgm_print(netdissect_options *, const u_char *, u_int, const u_char *);
 extern void pim_print(netdissect_options *, const u_char *, u_int, const u_char *);
 extern void pimv1_print(netdissect_options *, const u_char *, u_int);

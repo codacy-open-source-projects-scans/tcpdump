@@ -34,6 +34,9 @@
  */
 
 #include <config.h>
+#ifndef TCPDUMP_CONFIG_H_
+#error "The included config.h header is not from the tcpdump build."
+#endif
 
 #include "netdissect-stdinc.h"
 
@@ -137,11 +140,9 @@ The Regents of the University of California.  All rights reserved.\n";
 #include <sys/sysctl.h>
 #endif /* __FreeBSD__ */
 
-#include "netdissect-stdinc.h"
 #include "netdissect.h"
 #include "interface.h"
 #include "addrtoname.h"
-#include "pcap-missing.h"
 #include "ascii_strcasecmp.h"
 
 #include "print.h"
@@ -201,7 +202,9 @@ static int Qflag = -1;			/* restrict captured packet by send/receive direction *
 static int Uflag;			/* "unbuffered" output of dump files */
 static int Wflag;			/* recycle output files after this number of files */
 static int WflagChars;
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
 static char *zflag = NULL;		/* compress each savefile using a specified command (like gzip or bzip2) */
+#endif
 static int timeout = 1000;		/* default timeout = 1000 ms = 1 s */
 #ifdef HAVE_PCAP_SET_IMMEDIATE_MODE
 static int immediate_mode;
@@ -223,7 +226,9 @@ static int64_t parse_int64(const char *argname, const char *string,
     char **endp, int64_t minval, int64_t maxval, int base);
 static void (*setsignal (int sig, void (*func)(int)))(int);
 static void cleanup(int);
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
 static void child_cleanup(int);
+#endif
 static void print_version(FILE *);
 static void print_usage(FILE *);
 
@@ -566,13 +571,10 @@ show_remote_devices_and_exit(void)
 /*
  * Short options.
  *
- * Note that there we use all letters for short options except for g, k,
+ * Note that there we use all letters for short options except for k,
  * o, and P, and those are used by other versions of tcpdump, and we should
  * only use them for the same purposes that the other versions of tcpdump
  * use them:
- *
- * macOS tcpdump uses -g to force non--v output for IP to be on one
- * line, making it more "g"repable;
  *
  * macOS tcpdump uses -k to specify that packet comments in pcapng files
  * should be printed;
@@ -611,7 +613,27 @@ show_remote_devices_and_exit(void)
 #define m_FLAG_USAGE "[ -m module ] ..."
 #endif
 
-#define SHORTOPTS "aAbB:c:C:dDeE:fF:G:hHi:I" j_FLAG J_FLAG "KlLm:M:nNOpqQ:r:s:StT:uUvV:w:W:xXy:Yz:Z:#"
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
+#define z_FLAG		"z:"
+#define z_FLAG_USAGE    "[ -z postrotate-command ] "
+#else
+#define z_FLAG
+#define z_FLAG_USAGE
+#endif
+
+#ifdef HAVE_LIBCRYPTO
+#define E_FLAG		"E:"
+#define E_FLAG_USAGE    "[ -E algo:secret ] "
+#define M_FLAG		"M:"
+#define M_FLAG_USAGE	"[ -M secret ] "
+#else
+#define E_FLAG
+#define E_FLAG_USAGE
+#define M_FLAG
+#define M_FLAG_USAGE
+#endif
+
+#define SHORTOPTS "aAbB:c:C:dDe" E_FLAG "fF:gG:hHi:I" j_FLAG J_FLAG "KlLm:" M_FLAG "nNOpqQ:r:s:StT:uUvV:w:W:xXy:Y" z_FLAG "Z:#"
 
 /*
  * Long options.
@@ -688,6 +710,7 @@ static const struct option longopts[] = {
 	{ "print-sampling", required_argument, NULL, OPTION_PRINT_SAMPLING },
 	{ "lengths", no_argument, NULL, OPTION_LENGTHS },
 	{ "time-t-size", no_argument, NULL, OPTION_TIME_T_SIZE },
+	{ "ip-oneline", no_argument, NULL, 'g' },
 	{ "skip", required_argument, NULL, OPTION_SKIP },
 	{ "version", no_argument, NULL, OPTION_VERSION },
 	{ NULL, 0, NULL, 0 }
@@ -726,7 +749,7 @@ droproot(const char *username, const char *chroot_dir)
 		{
 			int ret = capng_change_id(pw->pw_uid, pw->pw_gid, CAPNG_NO_FLAG);
 			if (ret < 0)
-				error("capng_change_id(): return %d\n", ret);
+				error("capng_change_id(): return %d", ret);
 			else
 				fprintf(stderr, "dropped privs to %s\n", username);
 		}
@@ -1172,6 +1195,8 @@ _U_
 	status = pcap_findalldevs(&devlist, ebuf);
 	if (status < 0)
 		error("%s", ebuf);
+	if (devlist == NULL)
+		error("no interfaces available for capture");
 	/*
 	 * Look for the devnum-th entry in the list of devices (1-based).
 	 */
@@ -1180,8 +1205,8 @@ _U_
 		;
 	if (dev == NULL) {
 		pcap_freealldevs(devlist);
-		error("Invalid adapter index %ld: only %ld interfaces found",
-		    devnum, i);
+		error("Invalid adapter index %ld: only %ld interface%s found",
+		    devnum, i, (i == 1) ? "" : "s");
 	}
 	device = strdup(dev->name);
 	pcap_freealldevs(devlist);
@@ -1336,7 +1361,7 @@ open_interface(const char *device, netdissect_options *ndo, char *ebuf)
 		 */
 		cp = pcap_geterr(pc);
 		if (status == PCAP_ERROR)
-			error("%s", cp);
+			error("%s: %s", device, cp);
 		else if (status == PCAP_ERROR_NO_SUCH_DEVICE) {
 			/*
 			 * Return an error for our caller to handle.
@@ -1346,6 +1371,11 @@ open_interface(const char *device, netdissect_options *ndo, char *ebuf)
 		} else if (status == PCAP_ERROR_PERM_DENIED && *cp != '\0')
 			error("%s: %s\n(%s)", device,
 			    pcap_statustostr(status), cp);
+#ifdef PCAP_ERROR_CAPTURE_NOTSUP
+		else if (status == PCAP_ERROR_CAPTURE_NOTSUP && *cp != '\0')
+			error("%s: %s\n(%s)", device,
+			    pcap_statustostr(status), cp);
+#endif
 #ifdef __FreeBSD__
 		else if (status == PCAP_ERROR_RFMON_NOTSUP &&
 		    strncmp(device, "wlan", 4) == 0) {
@@ -1363,7 +1393,7 @@ open_interface(const char *device, netdissect_options *ndo, char *ebuf)
 			 * specific case would be an error message that looks a bit odd.
 			 */
 			newdev[strlen(newdev)-1]++;
-			error("%s is not a monitor mode VAP\n"
+			error("%s is not a monitor mode VAP"
 			    "To create a new monitor mode VAP use:\n"
 			    "  ifconfig %s create wlandev %s wlanmode monitor\n"
 			    "and use %s as the tcpdump interface",
@@ -1757,12 +1787,11 @@ main(int argc, char **argv)
 			++ndo->ndo_eflag;
 			break;
 
+#ifdef HAVE_LIBCRYPTO
 		case 'E':
-#ifndef HAVE_LIBCRYPTO
-			warning("crypto code not compiled in");
-#endif
 			ndo->ndo_espsecret = optarg;
 			break;
+#endif
 
 		case 'f':
 			++ndo->ndo_fflag;
@@ -1770,6 +1799,10 @@ main(int argc, char **argv)
 
 		case 'F':
 			infile = optarg;
+			break;
+
+		case 'g':
+			++ndo->ndo_gflag;
 			break;
 
 		case 'G':
@@ -1848,13 +1881,12 @@ main(int argc, char **argv)
 			}
 			break;
 
+#ifdef HAVE_LIBCRYPTO
 		case 'M':
 			/* TCP-MD5 shared secret */
-#ifndef HAVE_LIBCRYPTO
-			warning("crypto code not compiled in");
-#endif
 			ndo->ndo_sigsecret = optarg;
 			break;
+#endif
 
 		case 'n':
 			++ndo->ndo_nflag;
@@ -2004,9 +2036,12 @@ main(int argc, char **argv)
 			}
 			break;
 #endif
+
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
 		case 'z':
 			zflag = optarg;
 			break;
+#endif
 
 		case 'Z':
 			username = optarg;
@@ -2091,11 +2126,19 @@ main(int argc, char **argv)
 		}
 
 	if (ndo->ndo_Aflag && ndo->ndo_xflag)
-		warning("-A and -x[x] are mutually exclusive. -A ignored.");
+		error("-A and -x[x] are mutually exclusive.");
 	if (ndo->ndo_Aflag && ndo->ndo_Xflag)
-		warning("-A and -X[X] are mutually exclusive. -A ignored.");
+		error("-A and -X[X] are mutually exclusive.");
 	if (ndo->ndo_xflag && ndo->ndo_Xflag)
-		warning("-x[x] and -X[X] are mutually exclusive. -x[x] ignored.");
+		error("-x[x] and -X[X] are mutually exclusive.");
+	if (Cflag != 0 && WFileName == NULL)
+		error("-C cannot be used without -w.");
+	if (Gflag != 0 && WFileName == NULL)
+		error("-G cannot be used without -w.");
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
+	if (zflag != NULL && (WFileName == NULL || (Cflag == 0 && Gflag == 0)))
+		error("-z cannot be used without -w and (-C or -G).");
+#endif
 
 	if (cnt != -1)
 		if ((int)packets_to_skip > (INT_MAX - cnt))
@@ -2126,7 +2169,7 @@ main(int argc, char **argv)
 	}
 
 	if (ndo->ndo_fflag != 0 && (VFileName != NULL || RFileName != NULL))
-		error("-f can not be used with -V or -r");
+		error("-f cannot be used with -V or -r.");
 
 	if (VFileName != NULL && RFileName != NULL)
 		error("-V and -r are mutually exclusive.");
@@ -2194,11 +2237,11 @@ main(int argc, char **argv)
 				VFile = fopen(VFileName, "r");
 
 			if (VFile == NULL)
-				error("Unable to open file: %s\n", pcap_strerror(errno));
+				error("Unable to open file: %s", pcap_strerror(errno));
 
 			ret = get_next_file(VFile, VFileLine);
 			if (!ret)
-				error("Nothing in %s\n", VFileName);
+				error("Nothing in %s", VFileName);
 			RFileName = VFileLine;
 		}
 
@@ -2370,7 +2413,11 @@ DIAG_ON_WARN_UNUSED_RESULT
 #ifdef HAVE_PCAP_SET_OPTIMIZER_DEBUG
 	pcap_set_optimizer_debug(dflag);
 #endif
-	if (pcap_compile(pd, &fcode, cmdbuf, Oflag, netmask) < 0)
+	/*
+	 * netmask is in network byte order, pcap_compile() takes it
+	 * in host byte order.
+	 */
+	if (pcap_compile(pd, &fcode, cmdbuf, Oflag, ntohl(netmask)) < 0)
 		error("%s", pcap_geterr(pd));
 	if (dflag) {
 		bpf_dump(&fcode, dflag);
@@ -2385,6 +2432,7 @@ DIAG_ON_WARN_UNUSED_RESULT
 		capdns = capdns_setup();
 #endif	/* HAVE_CASPER */
 
+	// Both localnet and netmask are in network byte order.
 	init_print(ndo, localnet, netmask);
 
 #ifndef _WIN32
@@ -2739,6 +2787,7 @@ DIAG_ON_ASSIGN_ENUM
 			info(1);
 		}
 		pcap_close(pd);
+		pd = NULL;
 		if (VFileName != NULL) {
 			ret = get_next_file(VFile, VFileLine);
 			if (ret) {
@@ -2788,7 +2837,11 @@ DIAG_ON_ASSIGN_ENUM
 					ndo->ndo_if_printer = get_if_printer(dlt);
 					/* Free the old filter */
 					pcap_freecode(&fcode);
-					if (pcap_compile(pd, &fcode, cmdbuf, Oflag, netmask) < 0)
+					/*
+					 * netmask is in network byte order, pcap_compile() takes it
+					 * in host byte order.
+					 */
+					if (pcap_compile(pd, &fcode, cmdbuf, Oflag, ntohl(netmask)) < 0)
 						error("%s", pcap_geterr(pd));
 				}
 
@@ -3014,7 +3067,8 @@ cleanup(int signo _U_)
 	 * to do anything with standard I/O streams in a signal handler -
 	 * the ANSI C standard doesn't say it is).
 	 */
-	pcap_breakloop(pd);
+	if (pd)
+		pcap_breakloop(pd);
 }
 
 /*
@@ -3088,8 +3142,8 @@ compress_savefile(const char *filename)
 	child = fork_subprocess();
 	if (child == -1) {
 		fprintf(stderr,
-			"compress_savefile: fork failed: %s\n",
-			pcap_strerror(errno));
+			"%s: fork failed: %s\n",
+			__func__, pcap_strerror(errno));
 		return;
 	}
 	if (child != 0) {
@@ -3108,24 +3162,15 @@ compress_savefile(const char *filename)
 #endif
 	if (execlp(zflag, zflag, filename, (char *)NULL) == -1)
 		fprintf(stderr,
-			"compress_savefile: execlp(%s, %s) failed: %s\n",
-			zflag,
-			filename,
-			pcap_strerror(errno));
+			"%s: execlp(%s, %s) failed: %s\n",
+			__func__, zflag, filename, pcap_strerror(errno));
 #ifdef HAVE_FORK
 	exit(S_ERR_HOST_PROGRAM);
 #else
 	_exit(S_ERR_HOST_PROGRAM);
 #endif
 }
-#else  /* HAVE_FORK && HAVE_VFORK */
-static void
-compress_savefile(const char *filename)
-{
-	fprintf(stderr,
-		"compress_savefile failed. Functionality not implemented under your system\n");
-}
-#endif /* HAVE_FORK && HAVE_VFORK */
+#endif /* HAVE_FORK || HAVE_VFORK */
 
 static void
 close_old_dump_file(struct dump_info *dump_info)
@@ -3135,11 +3180,13 @@ close_old_dump_file(struct dump_info *dump_info)
 	 */
 	pcap_dump_close(dump_info->pdd);
 
+#if defined(HAVE_FORK) || defined(HAVE_VFORK)
 	/*
 	 * Compress the file we just closed, if the user asked for it.
 	 */
 	if (zflag != NULL)
 		compress_savefile(dump_info->CurrentFileName);
+#endif
 }
 
 static void
@@ -3237,7 +3284,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 			/* Allocate space for max filename + \0. */
 			dump_info->CurrentFileName = (char *)malloc(PATH_MAX + 1);
 			if (dump_info->CurrentFileName == NULL)
-				error("dump_packet_and_trunc: malloc");
+				error("%s: malloc", __func__);
 			/*
 			 * Gflag was set otherwise we wouldn't be here. Reset the count
 			 * so multiple files would end with 1,2,3 in the filename.
@@ -3436,9 +3483,9 @@ print_usage(FILE *f)
 {
 	print_version(f);
 	(void)fprintf(f,
-"Usage: %s [-AbdDefhHI" J_FLAG "KlLnNOpqStuUvxX#] [ -B size ] [ -c count ] [--count]\n", program_name);
+"Usage: %s [-AbdDefghHI" J_FLAG "KlLnNOpqStuUvxX#] [ -B size ] [ -c count ] [--count]\n", program_name);
 	(void)fprintf(f,
-"\t\t[ -C file_size ] [ -E algo:secret ] [ -F file ] [ -G seconds ]\n");
+"\t\t[ -C file_size ] " E_FLAG_USAGE "[ -F file ] [ -G seconds ]\n");
 	(void)fprintf(f,
 "\t\t[ -i interface ]" IMMEDIATE_MODE_USAGE j_FLAG_USAGE "\n");
 	(void)fprintf(f,
@@ -3448,7 +3495,7 @@ print_usage(FILE *f)
 "\t\t" m_FLAG_USAGE "\n");
 #endif
 	(void)fprintf(f,
-"\t\t[ -M secret ] [ --number ] [ --print ]\n");
+"\t\t" M_FLAG_USAGE "[ --number ] [ --print ]\n");
 	(void)fprintf(f,
 "\t\t[ --print-sampling nth ] [ -Q in|out|inout ] [ -r file ]\n");
 	(void)fprintf(f,
@@ -3460,5 +3507,5 @@ print_usage(FILE *f)
 "\t\t[ --time-stamp-precision precision ] [ --micro ] [ --nano ]\n");
 #endif
 	(void)fprintf(f,
-"\t\t[ -z postrotate-command ] [ -Z user ] [ expression ]\n");
+"\t\t" z_FLAG_USAGE "[ -Z user ] [ expression ]\n");
 }

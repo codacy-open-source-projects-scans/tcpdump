@@ -19,8 +19,7 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
         in a fixed-size buffer to be printed later
       ICMP: add dissector for ICMP Interface Identification Object
       ICMP: print RFC8335 PROBE extended echo/reply messages.
-      IEEE 802.11: include the Mesh ID field while printing management
-        frames.
+      IEEE 802.11: include the Mesh ID field while printing management frames.
       NetFlow: Use tcp_flag_values[] for TCP flags.
       NTP: Check that the entire extension field is in the capture even
         if it isn't printed
@@ -38,24 +37,23 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
         the subrule is present (inspird by the OpenBSD tcpdump).
       pflog: Handle OpenBSD's "rewritten" flag and addresses (adapted
         from the OpenBSD tcpdump).
+      PTP: Refine timestamp printing.
       SLL2: Translate interface indices to names on Linux only.
       RT6: Add a bounds check for the PadN TLV in Segment Routing Header.
       TCP: Add support for the AE (AccECN) flag.
     User interface:
-      Add optional unit suffix on -C file size.
       Add --print-sampling to print every Nth packet instead of all.
       Add --lengths option to print the captured and original packet lengths.
       Add --skip option to skip some packets before writing or printing.
-      Use a common routine to parse numerical arguments and check its
-        value.
+      Use a common routine to parse numerical arguments and check its value.
     Source code:
       Drop support for building with versions of libpcap that don't
         support all the libpcap 1.0 APIs.
       Use %zu when printing a sizeof to squelch compiler warnings
       Remove unused missing/strdup.c.
       (FIXME: somebody please wrap the line below just before the release)
-      AODV, AppleTalk, BOOTP, CHDLC, DCCP, EAP, EGP, EIGRP, ForCES, Geneve, GRE, ICMP, Juniper, L2TP, LISP, mobile, MSDP, NetFlow, NFLOG, NTP, OLSR, pflog, PGM, RADIUS, RIP, RSVP, SCTP, SNMP, TCP, UDP, vsock: Modernize packet parsing style
-      DCCP, EGP: Replace custom code with tok2str()
+      AODV, AppleTalk, BOOTP, CHDLC, DCCP, EAP, EIGRP, ForCES, Geneve, GRE, ICMP, Juniper, L2TP, LISP, mobile, MSDP, NetFlow, NFLOG, NTP, OLSR, pflog, PGM, RADIUS, RIP, RSVP, SCTP, SNMP, TCP, UDP, vsock: Modernize packet parsing style
+      DCCP: Replace custom code with tok2str().
       UDP: Clean up address and port printing.
       AppleTalk: Declutter appletalk.h.
       IEEE 802.11: Simplify handle_action().
@@ -63,8 +61,8 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
         and use them rather than custom code
       Disregard setlinebuf(3), always use setvbuf(3).
       Change Sun RPC code licence to BSD-3-Clause.
-      Use C99 macros to define 64-bit constants and maximum 64-bit
-        values.
+      Fix "ip broadcast" netmask byte order with the -f flag.
+      Remove pcap-missing.h.
     Building and testing:
       Autoconf: Remove detection of early IPv6 stacks.
       Detect OS IPv6 support using AF_INET6 only.
@@ -79,12 +77,16 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
       tests: On HP-UX use "diff -c" by default.
       autogen.sh: Allow to configure Autoconf warnings.
       autogen.sh: Delete all trailing blank lines at end of configure.
+      Reimplement the tests similarly to libpcap.
     Documentation:
       man: Clarify the "any" pseudo-interface further.
 
 DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
   Summary for 4.99.6 tcpdump release (so far!)
+    Remove protocol decoding for:
+      OTV (draft-hasmit-otv-04, this Internet-Draft is no longer active).
     Refine protocol decoding for:
+      DNS: Use ND_TCHECK_LEN() instead of a custom bounds check.
       IPv6: Add a missing comma and remove a colon in the output.
       TCP: Note if the Urgent Pointer is non-zero while URG flag not set,
            if the verbose level is > 1 (option -vv and more).
@@ -92,13 +94,42 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
            if the verbose level is > 1 (option -vv and more).
       TCP: Fix Reset segment processing.
       IP, IPv6: Fix setting the snapshot length for the payload.
+      IP: Use ND_TTEST_LEN() instead of a custom bounds check.
+      frag6: Add a bounds check in non-verbose mode.
       PTP: Remove spaces before colons in output.
       PTP: Fix management packet fields.
+      ISO: Avoid undefined behavior and integer overflow in the fletcher
+           checksum calculation.
+      NFS: Delete dead code.
+      BOOTP: Use an uint16_t variable to get the result of a GET_BE_U_2().
+      ZEP: use the exissting NTP time formatting code.
+      NTP: Fix p_ntp_time_fmt() using epoch 1/epoch 2 convention (RFC 4330).
+      NTP: Update a field name with the RFC 5905 name (Origin Timestamp).
+      IPv6 mobility: Modernize packet parsing and make fixes.
+      IP6OPTS: Modernize packet parsing and make fixes.
+      VXLAN: Add UDP port 8472 used by Linux as the default port.
+      EGP: Replace custom code with tok2str(); Modernize packet parsing and
+        fix printing with -v option.
     User interface:
-      Warn that options -A, -x[x] and -X[X] are mutually exclusive.
+      Add optional unit suffix on -C file size.
+      Improve the handling of size suffixes for -C.
+      Print errors for options -A, -x[x] and -X[X] (mutually exclusive).
+      Print errors about -C, -G and -z options usage.
+      For PCAP_ERROR_CAPTURE_NOTSUP, show the error message provided
+        by libpcap for that error if it's non-empty.
+      Update the -z option processing. Print "invalid option -- z" when it is.
+    Other:
+      Avoid race condition when receiving signal during shutdown.
+      Always show the interface name in error messages when the
+        interface can't be opened.
+      Clean up the message shown if a -i flag is specified with an
+        interface index that's too large.
     Source code:
       Fix '-tt' option printing when time > 2106-02-07T06:28:15Z.
+      Add sub-second packet timestamp checks for invalid micro/nano.
       Remove unused missing/snprintf.c.
+      Fix incompatible pointer types with time functions calls on Windows.
+      Use C99 macros to define 64-bit constants and maximum 64-bit values.
     Windows:
       Fixed to find wpcap.dll if WinPcap isn't installed and Npcap was
         installed without the WinPcap API compatibility option. (GitHub
@@ -113,6 +144,10 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
       autotools, CMake: fix issues with snprintf test and sanitizers.
       CMake: check whether check_c_source_runs() works, treat the build
         as a cross-compile if it doesn't work.
+      Autoconf: Use AC_SYS_YEAR2038_RECOMMENDED when possible if the
+        environment variable BUILD_YEAR2038 = yes (via autogen.sh).
+      Autoconf: Avoid incorrectly include the libpcap's config.h.
+      Require config.h to be from the tcpdump build.
 
 Friday, August 30, 2024 / The Tcpdump Group
   Summary for 4.99.5 tcpdump release

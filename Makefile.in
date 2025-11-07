@@ -49,7 +49,7 @@ DEFS = @DEFS@ @CPPFLAGS@ @V_DEFS@
 
 # Standard CFLAGS
 CFLAGS = @CFLAGS@
-FULL_CFLAGS = $(CCOPT) $(DEFS) $(INCLS) $(CFLAGS)
+FULL_CFLAGS = $(INCLS) $(CCOPT) $(DEFS) $(CFLAGS)
 
 # Standard LDFLAGS
 LDFLAGS = @LDFLAGS@
@@ -189,7 +189,6 @@ LIBNETDISSECT_SRC=\
 	print-openflow.c \
 	print-ospf.c \
 	print-ospf6.c \
-	print-otv.c \
 	print-pflog.c \
 	print-pgm.c \
 	print-pim.c \
@@ -303,7 +302,6 @@ HDR = \
 	openflow.h \
 	ospf.h \
 	oui.h \
-	pcap-missing.h \
 	ppp.h \
 	print.h \
 	rpc_auth.h \
@@ -373,7 +371,7 @@ EXTRA_DIST = \
 	stime.awk \
 	tcpdump.1.in
 
-TEST_DIST= `git -C "$$DIR" ls-files tests | grep -v 'tests/\..*'`
+TEST_DIST= `git -C "$$DIR" ls-files tests`
 
 RELEASE_FILES = $(CSRC) $(HDR) $(LIBNETDISSECT_SRC) $(EXTRA_DIST) $(TEST_DIST)
 
@@ -425,9 +423,8 @@ clean:
 distclean: clean
 	rm -f Makefile config.cache config.log config.status \
 	    config.h os-proto.h stamp-h stamp-h.in $(PROG).1 \
-	    libnetdissect.a tests/.failed tests/.passed \
-	    tests/failure-outputs.txt
-	rm -rf autom4te.cache tests/DIFF tests/NEW
+	    libnetdissect.a
+	rm -rf autom4te.cache
 
 check: tcpdump
 	$(srcdir)/tests/TESTrun

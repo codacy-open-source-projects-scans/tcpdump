@@ -83,7 +83,7 @@ nd_init(char *errbuf, size_t errbuf_size)
 }
 
 /*
- * Clean up anything that ndo_init() did.
+ * Clean up anything that nd_init() did.
  */
 void
 nd_cleanup(void)
@@ -312,6 +312,6 @@ nd_trunc_longjmp(netdissect_options *ndo)
 	 * XL C that the function is noreturn, but GCC remains unaware of that and
 	 * yields a "'noreturn' function does return" warning.
 	 */
-	ND_UNREACHABLE
+	ND_NOT_REACHABLE
 #endif /* _AIX */
 }

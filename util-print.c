@@ -216,10 +216,14 @@ ts_frac_print(netdissect_options *ndo, const struct timeval *tv)
 
 	case PCAP_TSTAMP_PRECISION_MICRO:
 		ND_PRINT(".%06u", (unsigned)tv->tv_usec);
+		if ((unsigned)tv->tv_usec > ND_MICRO_PER_SEC - 1)
+			ND_PRINT(" " ND_INVALID_MICRO_SEC_STR);
 		break;
 
 	case PCAP_TSTAMP_PRECISION_NANO:
 		ND_PRINT(".%09u", (unsigned)tv->tv_usec);
+		if ((unsigned)tv->tv_usec > ND_NANO_PER_SEC - 1)
+			ND_PRINT(" " ND_INVALID_NANO_SEC_STR);
 		break;
 
 	default:
@@ -228,6 +232,8 @@ ts_frac_print(netdissect_options *ndo, const struct timeval *tv)
 	}
 #else
 	ND_PRINT(".%06u", (unsigned)tv->tv_usec);
+	if ((unsigned)tv->tv_usec > ND_MICRO_PER_SEC - 1)
+		ND_PRINT(" " ND_INVALID_MICRO_SEC_STR);
 #endif
 }
 
@@ -248,7 +254,7 @@ ts_date_hmsfrac_print(netdissect_options *ndo, const struct timeval *tv,
 #endif
 
 	if (tv->tv_sec < 0) {
-		ND_PRINT("[timestamp < 1970-01-01 00:00:00 UTC]");
+		ND_PRINT("[timestamp overflow]");
 		return;
 	}
 
@@ -289,7 +295,7 @@ static void
 ts_unix_print(netdissect_options *ndo, const struct timeval *tv)
 {
 	if (tv->tv_sec < 0) {
-		ND_PRINT("[timestamp < 1970-01-01 00:00:00 UTC]");
+		ND_PRINT("[timestamp overflow]");
 		return;
 	}
 
@@ -473,6 +479,23 @@ void nd_print_protocol_caps(netdissect_options *ndo)
 void nd_print_invalid(netdissect_options *ndo)
 {
 	ND_PRINT(" (invalid)");
+}
+
+/*
+ * Print a sequence of bytes, separated by a single space.
+ * Stop if truncated (via GET_U_1/longjmp) or after n bytes,
+ * whichever is first.
+ */
+void
+nd_print_bytes_hex(netdissect_options *ndo, const u_char *cp, u_int n)
+{
+	while (n > 0) {
+		ND_PRINT("%02x", GET_U_1(cp));
+		n--;
+		cp++;
+		if (n > 0)
+			ND_PRINT(" ");
+	}
 }
 
 /*

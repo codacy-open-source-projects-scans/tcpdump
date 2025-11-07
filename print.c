@@ -38,8 +38,6 @@
 #include "print.h"
 #include "netdissect-alloc.h"
 
-#include "pcap-missing.h"
-
 struct printer {
 	if_printer f;
 	int type;
@@ -207,10 +205,10 @@ static const struct printer printers[] = {
 #endif
 	{ raw_if_print,		DLT_RAW },
 #ifdef DLT_IPV4
-	{ raw_if_print,		DLT_IPV4 },
+	{ ipv4_if_print,	DLT_IPV4 },
 #endif
 #ifdef DLT_IPV6
-	{ raw_if_print,		DLT_IPV6 },
+	{ ipv6_if_print,	DLT_IPV6 },
 #endif
 #ifdef DLT_SLIP_BSDOS
 	{ sl_bsdos_if_print,	DLT_SLIP_BSDOS },
@@ -241,6 +239,7 @@ static const struct printer printers[] = {
 	{ NULL,                 0 },
 };
 
+// Both localnet and mask are in network byte order.
 void
 init_print(netdissect_options *ndo, uint32_t localnet, uint32_t mask)
 {

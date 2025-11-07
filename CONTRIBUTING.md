@@ -61,57 +61,68 @@ and ask!
      supports these options,
    * have the `Makefile` support `make depend` and the `configure` script run it.
 
-6) Configure and build
-   ```
-   ./configure && make -s && make check
-   ```
+6) Make your changes
 
-7) Add/update tests
-   The `tests` directory contains regression tests of the dissection of captured
-   packets.  Those captured packets were saved running tcpdump with option
-   `-w sample.pcap`.  Additional options, such as `-n`, are used to create relevant
-   and reproducible output; `-#` is used to indicate which particular packets
-   have output that differs.  The tests are run with the `TZ` environment
-   variable set to `GMT0`, so that UTC, rather than the local time where the
-   tests are being run, is used when "local time" values are printed.  The
-   actual test compares the current text output with the expected result
-   (`sample.out`) saved from a previous version.
-
-   Any new/updated fields in a dissector must be present in a `sample.pcap` file
-   and the corresponding output file.
-
-   Configuration is set in `tests/TESTLIST`.
-   Each line in this file has the following format:
+7) Generate the configure scripts
    ```
-   test-name   sample.pcap   sample.out   tcpdump-options
+   ./autogen.sh
    ```
 
-   The `sample.out` file can be produced as follows:
+8) Configure
    ```
-   (cd tests && TZ=GMT0 ../tcpdump -# -n -r sample.pcap tcpdump-options > sample.out)
+   ./configure
    ```
 
-   Or, for convenience, use `./update-test.sh test-name`
-
-   It is often useful to have test outputs with different verbosity levels
-   (none, `-v`, `-vv`, `-vvv`, etc.) depending on the code.
-
-8) Test using `make check` (current build options) and `./build_matrix.sh`
-   (a multitude of build options, build systems and compilers). If you can,
-   test on more than one operating system. Don't send a pull request until
-   all tests pass.
-
-9) Try to rebase your commits to keep the history simple.
+9) Build
    ```
-   git fetch upstream
-   git rebase upstream/master
+   make -s
    ```
-   (If the rebase fails and you cannot resolve, issue `git rebase --abort`
-   and ask for help in the pull request comment.)
 
-10) Once 100% happy, put your work into your forked repository using `git push`.
+10) Add/update tests. The `tests` directory contains regression tests of the dissection of captured
+    packets.  Those captured packets were saved running tcpdump with option
+    `-w sample.pcap`.  Additional options, such as `-n`, are used to create relevant
+    and reproducible output; `-#` is used to indicate which particular packets
+    have output that differs.  The tests are run with the `TZ` environment
+    variable set to `GMT0`, so that UTC, rather than the local time where the
+    tests are being run, is used when "local time" values are printed.  The
+    actual test compares the current text output with the expected result
+    (`sample.out`) saved from a previous version.
 
-11) [Initiate and send](https://help.github.com/articles/using-pull-requests/)
+    Any new/updated fields in a dissector must be present in a `sample.pcap` file
+    and the corresponding output file.
+
+    Configuration is set in `tests/TESTLIST`.
+    Each line in this file has the following format:
+    ```
+    test-name   sample.pcap   sample.out   tcpdump-options
+    ```
+
+    The `sample.out` file can be produced as follows:
+    ```
+    (cd tests && TZ=GMT0 ../tcpdump -# -n -r sample.pcap tcpdump-options > sample.out)
+    ```
+
+    Or, for convenience, use `./update-test.sh test-name`
+
+    It is often useful to have test outputs with different verbosity levels
+    (none, `-v`, `-vv`, `-vvv`, etc.) depending on the code.
+
+11) Test using `make check` (current build options) and `./build_matrix.sh`
+    (a multitude of build options, build systems and compilers). If you can,
+    test on more than one operating system. Don't send a pull request until
+    all tests pass.
+
+12) Try to rebase your commits to keep the history simple.
+    ```
+    git fetch upstream
+    git rebase upstream/master
+    ```
+    (If the rebase fails and you cannot resolve, issue `git rebase --abort`
+    and ask for help in the pull request comment.)
+
+13) Once 100% happy, put your work into your forked repository using `git push`.
+
+14) [Initiate and send](https://help.github.com/articles/using-pull-requests/)
     a pull request.
     This will trigger the upstream repository CI tests.
 

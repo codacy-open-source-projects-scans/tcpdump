@@ -14,7 +14,12 @@ dnl
 #
 
 AC_PREREQ([2.69])
-AC_INIT([tcpdump],[m4_esyscmd_s(cat VERSION)],[https://github.com/the-tcpdump-group/tcpdump/issues])
+AC_INIT(
+	[tcpdump],
+	[m4_esyscmd_s(cat VERSION)],
+	[https://github.com/the-tcpdump-group/tcpdump/issues],
+	[tcpdump],
+	[https://www.tcpdump.org/])
 AC_CONFIG_SRCDIR(tcpdump.c)
 
 AC_CANONICAL_HOST
@@ -40,6 +45,10 @@ AC_LBL_C_INIT(V_CCOPT, V_INCLS)
 #
 AC_CHECK_HEADERS(rpc/rpc.h rpc/rpcent.h)
 
+# On Linux, if Autoconf version >= 2.72 and GNU C Library version >= 2.34,
+# uncomment AC_SYS_YEAR2038_RECOMMENDED to ensure time_t is Y2038-safe.
+# (Can be done by autogen.sh)
+# AC_SYS_YEAR2038_RECOMMENDED
 #
 # Get the size of a void *, to know whether this is a 32-bit or 64-bit build.
 #
@@ -88,7 +97,11 @@ PKG_PROG_PKG_CONFIG
 #
 # Do we have the brew command from Homebrew?
 #
-AC_PATH_PROG([BREW], [brew])
+case "$host_os" in
+darwin*|linux*)
+	AC_PATH_PROG([BREW], [brew])
+	;;
+esac
 
 AC_ARG_WITH([smi],
    [AS_HELP_STRING([--with-smi],
@@ -174,7 +187,7 @@ yes)	AC_MSG_RESULT(yes)
 	AC_CHECK_LIB([bfd], [bfd_init],
 	    [true],
 	    [AC_MSG_ERROR(
-	       [--enable-instrument-functions was given, but test for library libbfd failed. Please install the 'binutils-dev' package.])],
+	       [--enable-instrument-functions was given, but test for library libbfd failed. Please install the 'binutils-dev' or 'binutils-devel' package.])],
 	    [])
 	AC_DEFINE(ENABLE_INSTRUMENT_FUNCTIONS, 1,
 	    [define if you want to build the instrument functions code])
@@ -246,6 +259,10 @@ AS_CASE(["$withval"],
 AC_ARG_WITH(sandbox-capsicum,
 	AS_HELP_STRING([--with-sandbox-capsicum],
 		       [use Capsicum security functions @<:@default=yes, if available@:>@]))
+
+# Capsicum is available on FreeBSD only.
+expr "$host_os" : freebsd >/dev/null || with_sandbox_capsicum=no
+
 #
 # Check whether various functions are available.  If any are, set
 # ac_lbl_capsicum_function_seen to yes; if any are not, set
@@ -729,7 +746,7 @@ fi
 AC_CHECK_FUNCS(pcap_set_optimizer_debug)
 
 #
-# bpf_dump() moved from tcpdump to libpcap in libpcap 0.6, but not all
+# bpf_dump() moved from tcpdump to libpcap in libpcap 0.6, but some
 # versions of libpcap didn't pick that change up; the OpenBSD libpcap
 # picked up most of the new APIs from versions up to 1.0, but didn't
 # pick up bpf_dump(), so we need to provide it if it's absent.
@@ -1057,7 +1074,6 @@ fi
 # Check for libcap-ng
 AC_MSG_CHECKING(whether to use libcap-ng)
 # Specify location for both includes and libraries.
-want_libcap_ng=ifavailable
 AC_ARG_WITH(cap_ng,
     AS_HELP_STRING([--with-cap-ng],
 		   [use libcap-ng @<:@default=yes, if available@:>@]),
@@ -1078,6 +1094,10 @@ AC_ARG_WITH(cap_ng,
 	want_libcap_ng=ifavailable
 	AC_MSG_RESULT([yes, if available])
 ])
+
+# libcap-ng is available on Linux only.
+expr "$host_os" : linux >/dev/null || want_libcap_ng=no
+
 if test "$want_libcap_ng" != "no"; then
 	AC_CHECK_LIB(cap-ng, capng_change_id)
 	AC_CHECK_HEADERS(cap-ng.h)
@@ -1101,6 +1121,13 @@ AC_SUBST(MAN_MISC_INFO)
 AC_PROG_INSTALL
 
 AC_CONFIG_HEADERS([config.h])
+AH_TOP([
+#ifndef TCPDUMP_CONFIG_H_
+#define TCPDUMP_CONFIG_H_
+])
+AH_BOTTOM([
+#endif // TCPDUMP_CONFIG_H_
+])
 
 AC_CONFIG_COMMANDS([.devel],[[if test -f .devel; then
 	echo timestamp > stamp-h

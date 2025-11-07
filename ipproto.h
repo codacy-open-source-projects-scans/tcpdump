@@ -59,6 +59,17 @@ extern const char *netdb_protoname (const uint8_t);
 #ifndef IPPROTO_EGP
 #define	IPPROTO_EGP		8		/* exterior gateway protocol */
 #endif
+/*
+ * XXX - the current IANA protocol number assignments page lists 9 as
+ * "any private interior gateway (used by Cisco for their IGRP)" and
+ * 88 as "EIGRP" from Cisco.
+ *
+ * Recent FreeBSD, DragonFly BSD, and macOS <netinet/in.h> headers define
+ * IPPROTO_PIGP as 9 and IPPROTO_IGRP as 88.  We define IPPROTO_PIGP
+ * ("private interior gateway protocol") as 9 and IPPROTO_EIGRP as 88;
+ * those names better match what the current protocol number
+ * assignments say.
+ */
 #ifndef IPPROTO_PIGP
 #define IPPROTO_PIGP		9
 #endif

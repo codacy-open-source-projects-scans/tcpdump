@@ -21,7 +21,7 @@ and tcpdump source trees are in the same directory.
 ### On Windows
 
 You will need to install both Npcap and the Npcap SDK; see [this
-file](README.windows.md) for information on that.
+file](doc/README.windows.md) for information on that.
 
 ## Building tcpdump
 
@@ -36,6 +36,10 @@ the following steps:
 * If you build from a git clone rather than from a release archive,
 run `./autogen.sh` (a shell script). The autogen.sh script will
 build the `configure` and `config.h.in` files.
+
+* If you build on a Linux 32-bit system, with Autoconf version >= 2.72
+and GNU C Library version >= 2.34, run `export BUILD_YEAR2038=yes`
+before running `./autogen.sh` to build with 64-bit time_t (Y2038-safe).
 
 On some system, you may need to set the `AUTORECONF` variable, like:
 `AUTORECONF=autoreconf-2.69 ./autogen.sh`
@@ -141,7 +145,6 @@ nlpid.h		- OSI NLPID definitions
 ospf.h		- Open Shortest Path First definitions
 packetdat.awk	- TCP chunk summary awk script
 parsenfsfh.c	- Network File System file parser routines
-pcap-missing.h	- declarations of functions possibly missing from libpcap
 ppp.h		- Point to Point Protocol definitions
 print.c		- Top-level routines for protocol printing
 print-*.c	- The netdissect printers

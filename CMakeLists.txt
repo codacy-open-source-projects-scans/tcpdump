@@ -303,8 +303,16 @@ set(LIBRARY_NAME netdissect)
 
 option(WITH_SMI "Build with libsmi, if available" ON)
 option(WITH_CRYPTO "Build with OpenSSL/libressl libcrypto, if available" ON)
-option(WITH_CAPSICUM "Build with Capsicum security functions, if available" ON)
-option(WITH_CAP_NG "Use libcap-ng, if available" ON)
+if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+    option(WITH_CAPSICUM "Build with Capsicum security functions, if available" ON)
+else()
+    set(WITH_CAPSICUM OFF)
+endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    option(WITH_CAP_NG "Use libcap-ng, if available" ON)
+else()
+    set(WITH_CAP_NG OFF)
+endif()
 option(ENABLE_SMB "Build with the SMB dissector" OFF)
 
 #
@@ -346,6 +354,7 @@ endif()
 
 ###################################################################
 #   Versioning
+# (and other variables to keep config.h consistent with Autoconf)
 ###################################################################
 
 # Get, parse, format and set tcpdump's version string from
@@ -356,6 +365,12 @@ file(STRINGS ${tcpdump_SOURCE_DIR}/VERSION
     PACKAGE_VERSION
     LIMIT_COUNT 1 # Read only the first line
 )
+
+set(PACKAGE_BUGREPORT "https://github.com/the-tcpdump-group/tcpdump/issues")
+set(PACKAGE_NAME "tcpdump")
+set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
+set(PACKAGE_TARNAME "${PACKAGE_NAME}")
+set(PACKAGE_URL "https://www.tcpdump.org/")
 
 ######################################
 # Project settings
@@ -443,11 +458,16 @@ include(CheckVariableExists)
 include(CheckTypeSize)
 
 #
-# Get the size of a time_t, to know whether it's 32-bit or 64-bit.
+# Get the size of a time_t, to know whether it's 32-bit or 64-bit. Print it.
 #
 cmake_push_check_state()
 set(CMAKE_EXTRA_INCLUDE_FILES time.h)
 check_type_size("time_t" SIZEOF_TIME_T)
+if(SIZEOF_TIME_T EQUAL 4)
+  message(STATUS "32-bit time_t")
+elseif(SIZEOF_TIME_T EQUAL 8)
+  message(STATUS "64-bit time_t")
+endif()
 cmake_pop_check_state()
 
 #
@@ -926,7 +946,7 @@ endif(NOT HAVE_PCAP_SET_PARSER_DEBUG)
 check_function_exists(pcap_set_optimizer_debug HAVE_PCAP_SET_OPTIMIZER_DEBUG)
 
 #
-# bpf_dump() moved from tcpdump to libpcap in libpcap 0.6, but not all
+# bpf_dump() moved from tcpdump to libpcap in libpcap 0.6, but some
 # versions of libpcap didn't pick that change up; the OpenBSD libpcap
 # picked up most of the new APIs from versions up to 1.0, but didn't
 # pick up bpf_dump(), so we need to provide it if it's absent.
@@ -1138,6 +1158,39 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/.devel OR EXISTS ${CMAKE_BINARY_DIR}/.devel)
         # file in tcpdump, gets a warning.
         #
         check_and_add_compiler_option(-wd4324)
+        #
+        # Suppress warnings about a "possible loss of performance"
+        # due to "storing 32-bit float result in memory" in the
+        # "fetch a 32-bit floating-point variable, in a particular
+        # byte order, from a packet" routines.
+        #
+        # What those routines do is fetch a 32-bit unsigned integral
+        # value in the appropriate byte order, store it into the
+        # "32-bit unsigned integer value" member of a union, and then
+        # return the "32-bit floating-point value" member of that union,
+        # in order to reinterpret the bits of the value as if it were
+        # an IEEE floating-point value. (Yes, we know, VAX floating
+        # point; at least the IBM mainframes have supported IEEE
+        # floating-point since the G4 S/390s.)
+        #
+        # The Microsoft page on that warning:
+        #
+        #    https://learn.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-3-c4738?view=msvc-170
+        #
+        # says that
+        #
+        #    C4738 warns that the result of an assignment, cast, passed
+        #    argument, or other operation may need to be rounded or
+        #    that the operation ran out of registers and needed to
+        #    use memory (spilling). This can result in performance loss.
+        #
+        # That suggests that the performance issues would be due to
+        # conversion between double and float, which we're not doing,
+        # or due to a calculation somehow running out of registers,
+        # but we're not doing a calculation.  Thus, we just suppress
+        # the warning.
+        #
+        check_and_add_compiler_option(-wd4738)
     else()
         #
         # Other compilers, including MSVC with a Clang front end and
@@ -1148,8 +1201,10 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/.devel OR EXISTS ${CMAKE_BINARY_DIR}/.devel)
         check_and_add_compiler_option(-Wall)
         check_and_add_compiler_option(-Wassign-enum)
         check_and_add_compiler_option(-Wcast-qual)
+        check_and_add_compiler_option(-Wcomma)
         check_and_add_compiler_option(-Wmissing-prototypes)
         check_and_add_compiler_option(-Wmissing-variable-declarations)
+        check_and_add_compiler_option(-Wnull-pointer-subtraction)
         check_and_add_compiler_option(-Wold-style-definition)
         if(NOT CMAKE_C_COMPILER_ID MATCHES "Sun")
             # In Sun C versions that implement GCC compatibility "-Wpedantic"
@@ -1165,6 +1220,8 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/.devel OR EXISTS ${CMAKE_BINARY_DIR}/.devel)
         check_and_add_compiler_option(-Wstrict-prototypes)
         check_and_add_compiler_option(-Wundef)
         check_and_add_compiler_option(-Wunreachable-code-return)
+        check_and_add_compiler_option(-Wunused-but-set-parameter)
+        check_and_add_compiler_option(-Wunused-but-set-variable)
         check_and_add_compiler_option(-Wused-but-marked-unused)
         check_and_add_compiler_option(-Wwrite-strings)
     endif()
@@ -1319,7 +1376,6 @@ set(NETDISSECT_SOURCE_LIST_C
     print-openflow.c
     print-ospf.c
     print-ospf6.c
-    print-otv.c
     print-pflog.c
     print-pgm.c
     print-pim.c

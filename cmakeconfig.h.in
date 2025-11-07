@@ -1,5 +1,8 @@
 /* cmakeconfig.h.in */
 
+#ifndef TCPDUMP_CONFIG_H_
+#define TCPDUMP_CONFIG_H_
+
 /* Define to 1 if arpa/inet.h declares `ether_ntohost' */
 #cmakedefine ARPA_INET_H_DECLARES_ETHER_NTOHOST 1
 
@@ -136,7 +139,7 @@
 #cmakedefine NET_ETHERNET_H_DECLARES_ETHER_NTOHOST 1
 
 /* Define to the address where bug reports for this package should be sent. */
-#cmakedefine PACKAGE_BUGREPORT ""
+#cmakedefine PACKAGE_BUGREPORT "@PACKAGE_BUGREPORT@"
 
 /* Define to the full name of this package. */
 #cmakedefine PACKAGE_NAME "@PACKAGE_NAME@"
@@ -145,10 +148,10 @@
 #cmakedefine PACKAGE_STRING "@PACKAGE_STRING@"
 
 /* Define to the one symbol short name of this package. */
-#cmakedefine PACKAGE_TARNAME ""
+#cmakedefine PACKAGE_TARNAME "@PACKAGE_TARNAME@"
 
 /* Define to the home page for this package. */
-#cmakedefine PACKAGE_URL ""
+#cmakedefine PACKAGE_URL "@PACKAGE_URL@"
 
 /* Define to the version of this package. */
 #cmakedefine PACKAGE_VERSION "@PACKAGE_VERSION@"
@@ -185,3 +188,5 @@
 
 /* Define to `uint8_t' if u_int8_t not defined. */
 #cmakedefine u_int8_t 1
+
+#endif // TCPDUMP_CONFIG_H_

@@ -51,8 +51,8 @@ struct pf_addr {
 /*
  * This header is:
  *
- *    61 bytes long on NetBSD, DragonFly BSD. and Darwin;
- *    84 bytes lon on OpenBSD;
+ *    61 bytes long on NetBSD, DragonFly BSD, and Darwin;
+ *    84 bytes long on OpenBSD;
  *    72 bytes long on FreeBSD;
  *
  * which, unfortunately, does not allow us to distinguish, based on
