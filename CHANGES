@@ -96,11 +96,11 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
       frag6: Add a bounds check in non-verbose mode.
       PTP: Remove spaces before colons in output.
       PTP: Fix management packet fields.
-      ISO: Avoid undefined behavior and integer overflow in the fletcher
+      ISO: Avoid undefined behavior and integer overflow in the Fletcher
            checksum calculation.
       NFS: Delete dead code.
       BOOTP: Use an uint16_t variable to get the result of a GET_BE_U_2().
-      ZEP: use the exissting NTP time formatting code.
+      ZEP: use the existing NTP time formatting code.
       NTP: Fix p_ntp_time_fmt() using epoch 1/epoch 2 convention (RFC 4330).
       NTP: Update a field name with the RFC 5905 name (Origin Timestamp).
       IPv6 mobility: Modernize packet parsing and make fixes.
