@@ -377,6 +377,12 @@ atm_print(netdissect_options *ndo,
 
 		case VCI_OAMF4SC: /* fall through */
 		case VCI_OAMF4EC:
+			/*
+			 * FIXME: This is broken because oam_print() parses an
+			 * ATM UNI header, which does not work correctly with
+			 * partially-decoded DLT_SUNATM, which is what this
+			 * function gets from sunatm_if_print().
+			 */
 			oam_print(ndo, p, length, ATM_OAM_HEC);
 			return;
 
@@ -426,7 +432,7 @@ oam_print(netdissect_options *ndo,
           const u_char *p, u_int length, u_int hec)
 {
     uint32_t cell_header;
-    uint16_t vpi, vci, cksum, cksum_shouldbe, idx;
+    uint16_t vpi, vci, cksum, cksum_shouldbe;
     uint8_t  cell_type, func_type, payload, clp;
     const struct tok *oam_functype_str;
 
@@ -479,19 +485,11 @@ oam_print(netdissect_options *ndo,
                        GET_U_1(oam_ptr.oam_fm_loopback->loopback_indicator) & OAM_FM_LOOPBACK_INDICATOR_MASK),
                GET_BE_U_4(oam_ptr.oam_fm_loopback->correlation_tag));
         ND_PRINT("\n\tLocation-ID ");
-        for (idx = 0; idx < sizeof(oam_ptr.oam_fm_loopback->loopback_id); idx++) {
-            if (idx % 2) {
-                ND_PRINT("%04x ",
-                         GET_BE_U_2(&oam_ptr.oam_fm_loopback->loopback_id[idx]));
-            }
-        }
+        nd_print_bytes_hex(ndo, oam_ptr.oam_fm_loopback->loopback_id,
+                           sizeof(oam_ptr.oam_fm_loopback->loopback_id));
         ND_PRINT("\n\tSource-ID   ");
-        for (idx = 0; idx < sizeof(oam_ptr.oam_fm_loopback->source_id); idx++) {
-            if (idx % 2) {
-                ND_PRINT("%04x ",
-                         GET_BE_U_2(&oam_ptr.oam_fm_loopback->source_id[idx]));
-            }
-        }
+        nd_print_bytes_hex(ndo, oam_ptr.oam_fm_loopback->source_id,
+                           sizeof(oam_ptr.oam_fm_loopback->source_id));
         break;
 
     case (OAM_CELLTYPE_FM << 4 | OAM_FM_FUNCTYPE_AIS):
@@ -501,12 +499,8 @@ oam_print(netdissect_options *ndo,
         ND_PRINT("\n\tFailure-type 0x%02x",
                  GET_U_1(oam_ptr.oam_fm_ais_rdi->failure_type));
         ND_PRINT("\n\tLocation-ID ");
-        for (idx = 0; idx < sizeof(oam_ptr.oam_fm_ais_rdi->failure_location); idx++) {
-            if (idx % 2) {
-                ND_PRINT("%04x ",
-                         GET_BE_U_2(&oam_ptr.oam_fm_ais_rdi->failure_location[idx]));
-            }
-        }
+        nd_print_bytes_hex(ndo, oam_ptr.oam_fm_ais_rdi->failure_location,
+                           sizeof(oam_ptr.oam_fm_ais_rdi->failure_location));
         break;
 
     case (OAM_CELLTYPE_FM << 4 | OAM_FM_FUNCTYPE_CONTCHECK):
