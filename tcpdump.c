@@ -1662,6 +1662,9 @@ main(int argc, char **argv)
 		executable_name = argv[0];
 	/* Strip off trailing ".exe". */
 	program_name = strdup(executable_name);
+	if (program_name == NULL)
+		error("Unable to allocate memory for executable name '%s'",
+		      executable_name);
 	last_dot = strrchr(program_name, '.');
 	if (last_dot != NULL && ascii_strcasecmp(last_dot, ".exe") == 0)
 		*last_dot = '\0';
@@ -2338,6 +2341,9 @@ main(int argc, char **argv)
 				error("no interfaces available for capture");
 			device = strdup(devlist->name);
 			pcap_freealldevs(devlist);
+			if (device == NULL)
+				error("Unable to allocate memory for device %s",
+				      devlist->name);
 		}
 
 		/*
