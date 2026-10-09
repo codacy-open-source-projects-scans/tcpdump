@@ -48,6 +48,7 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
       Add --lengths option to print the captured and original packet lengths.
       Add --skip option to skip some packets before writing or printing.
       Use a common routine to parse numerical arguments and check its value.
+      Add "geneve" as an option for -T.
     Source code:
       Drop support for building with versions of libpcap that don't
         support all the libpcap 1.0 APIs.
@@ -70,7 +71,6 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
       Detect OS IPv6 support using AF_INET6 only.
       Remove all remaining support for BSD/OS, IRIX, {OSF/1, Digital Unix,
         Tru64 Unix}, SINIX and Ultrix.
-      Fix compiling on GNU/Hurd.
       Make illumos build warning-free.
       Makefile.in: Update the .c.o build rule (Remove hacks for old SunOS 4).
       Autoconf: fix buggy tests for ether_ntohost().
@@ -78,14 +78,13 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
         .devel file does not exists.
       tests: On HP-UX use "diff -c" by default.
       Reimplement the tests similarly to libpcap.
-      CI: Implement cross-compiling with libpcap.
       Autoconf: Add QNX support to AC_LBL_LIBRARY_NET().
       Autoconf: Update config.{guess,sub}, timestamps 2025-07-10.
     Documentation:
       Add a README.qnx.md file.
 
-DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
-  Summary for 4.99.7 tcpdump release (so far!)
+Monday, September 21, 2026 / The Tcpdump Group
+  Summary for 4.99.7 tcpdump release
     Source code:
       NetFlow: Use tcp_flag_values[] for TCP flags.
       Disregard setlinebuf(3), always use setvbuf(3).
@@ -95,10 +94,15 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
       TCP: Add support for the AE (AccECN) flag.
       IP: Update the offload "presumed TSO" case for "BIG TCP".
       IP: Call ip_demux_print() with the correct payload length.
+      ISAKMP: Validate item_len before subtracting sizeof(ikev2_id).
     User interface:
        Print an error message about --count without -r or -V.
     Building and testing:
       Treat SA_RESTART as optional.
+      CI: Implement cross-compiling with libpcap.
+      Fix compiling on GNU/Hurd.
+    QNX:
+      Use a lower packet buffer timeout.
 
 Tuesday, December 30, 2025 / The Tcpdump Group
   Summary for 4.99.6 tcpdump release
@@ -315,6 +319,7 @@ Friday, April 7, 2023 / The Tcpdump Group
       Update config.{guess,sub}, timestamps 2023-01-01,2023-01-21.
     Documentation:
       man: Document TCP flag names better.
+      man: Document double quoting on Windows with cmd.exe.
 
 Thursday, January 12, 2023 / The Tcpdump Group
   Summary for 4.99.3 tcpdump release

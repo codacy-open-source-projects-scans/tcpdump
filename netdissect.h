@@ -308,6 +308,7 @@ NORETURN void nd_trunc_longjmp(netdissect_options *ndo);
 #define PT_SOMEIP	19	/* Autosar SOME/IP Protocol */
 #define PT_DOMAIN	20	/* Domain Name System (DNS) */
 #define PT_QUIC		21	/* QUIC */
+#define PT_GENEVE	22	/* Generic Network Virtualization Encapsulation */
 
 #define ND_MIN(a,b) ((a)>(b)?(b):(a))
 #define ND_MAX(a,b) ((b)>(a)?(b):(a))
@@ -732,7 +733,7 @@ extern void olsr_print(netdissect_options *, const u_char *, u_int, int);
 extern void openflow_print(netdissect_options *, const u_char *, u_int);
 extern void ospf6_print(netdissect_options *, const u_char *, u_int);
 extern int ospf_grace_lsa_print(netdissect_options *, const u_char *, u_int);
-extern void ospf_print(netdissect_options *, const u_char *, u_int, const u_char *);
+extern void ospf_print(netdissect_options *, const u_char *, u_int);
 extern int ospf_te_lsa_print(netdissect_options *, const u_char *, u_int);
 extern void pgm_print(netdissect_options *, const u_char *, u_int, const u_char *);
 extern void pim_print(netdissect_options *, const u_char *, u_int, const u_char *);
