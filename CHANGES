@@ -66,6 +66,11 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
       Fix "ip broadcast" netmask byte order with the -f flag.
       Remove pcap-missing.h.
       Remove the ".exe" from the program name in Windows error messages.
+      Add support for no-capture and no-inject device flags.
+      Add a byteswap.h header to define 16-bit, 32-bit, and 64-bit
+        byte-swapping macros, adapted from libpcap, and use the 32-bit
+        version instead of having dissectors define their own SWAPLONG()
+        macros.
     Building and testing:
       Autoconf: Remove detection of early IPv6 stacks.
       Detect OS IPv6 support using AF_INET6 only.
@@ -80,6 +85,8 @@ DayOfTheWeek, Month DD, YYYY / The Tcpdump Group
       Reimplement the tests similarly to libpcap.
       Autoconf: Add QNX support to AC_LBL_LIBRARY_NET().
       Autoconf: Update config.{guess,sub}, timestamps 2025-07-10.
+      mkdep: Use mktemp(1) if it is available.
+      mkdep: Propagate compiler errors.
     Documentation:
       Add a README.qnx.md file.
 
